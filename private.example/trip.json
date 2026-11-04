@@ -1,0 +1,140 @@
+{
+ "title": "範例小鎮三日遊",
+ "subtitle": "虛構資料，示範用",
+ "depart": "2026-12-04",
+ "return": "2026-12-06",
+ "cover": {
+  "file": "photos/placeholder.webp",
+  "alt": "範例插圖",
+  "credit": "本專案作者（程式產生的插圖）",
+  "license": "CC0 1.0",
+  "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ "days": [
+  {
+   "label": "Day 1",
+   "short": "1",
+   "title": "抵達與散步",
+   "date": "12/4（五）",
+   "summary": "下午抵達，晚上逛夜市。",
+   "tip": "帶一件薄外套。",
+   "items": [
+    {
+     "time": "14:00",
+     "title": "抵達旅館",
+     "note": "先寄放行李",
+     "photo": {
+      "file": "photos/placeholder.webp",
+      "alt": "範例插圖",
+      "credit": "本專案作者（程式產生的插圖）",
+      "license": "CC0 1.0",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+     },
+     "star": true
+    },
+    {
+     "time": "18:30",
+     "title": "夜市小吃",
+     "note": "範例店家",
+     "map": "範例夜市",
+     "photo": {
+      "file": "photos/placeholder.webp",
+      "alt": "範例插圖",
+      "credit": "本專案作者（程式產生的插圖）",
+      "license": "CC0 1.0",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+     }
+    }
+   ]
+  },
+  {
+   "label": "Day 2",
+   "short": "2",
+   "title": "海邊",
+   "date": "12/5（六）",
+   "summary": "海邊走走。",
+   "items": [
+    {
+     "time": "09:00",
+     "title": "早餐",
+     "photo": {
+      "file": "photos/placeholder.webp",
+      "alt": "範例插圖",
+      "credit": "本專案作者（程式產生的插圖）",
+      "license": "CC0 1.0",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+     }
+    },
+    {
+     "time": "11:00",
+     "title": "海灘散步",
+     "photo": {
+      "file": "photos/placeholder.webp",
+      "alt": "範例插圖",
+      "credit": "本專案作者（程式產生的插圖）",
+      "license": "CC0 1.0",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+     }
+    }
+   ]
+  },
+  {
+   "label": "Day 3",
+   "short": "3",
+   "title": "返程",
+   "date": "12/6（日）",
+   "summary": "午餐後回家。",
+   "items": [
+    {
+     "time": "12:00",
+     "title": "午餐",
+     "photo": {
+      "file": "photos/placeholder.webp",
+      "alt": "範例插圖",
+      "credit": "本專案作者（程式產生的插圖）",
+      "license": "CC0 1.0",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+     }
+    }
+   ]
+  }
+ ],
+ "checklist": [
+  {
+   "text": "訂旅館：確認入住時間",
+   "who": "我",
+   "done": true
+  },
+  {
+   "text": "訂車票：週五前",
+   "who": "我",
+   "due": "2026-11-27"
+  }
+ ],
+ "packing": [
+  "充電器",
+  "薄外套",
+  "雨傘"
+ ],
+ "budget": {
+  "title": "預算",
+  "rows": [
+   {
+    "item": "住宿",
+    "note": "2 晚",
+    "amount": "6000"
+   },
+   {
+    "item": "交通",
+    "note": "",
+    "amount": "2000"
+   }
+  ],
+  "totalLabel": "合計",
+  "total": "8000"
+ },
+ "notes": [
+  "這是虛構的範例資料。"
+ ],
+ "footer": "範例資料，請換成自己的內容。"
+}

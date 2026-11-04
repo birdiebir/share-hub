@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>分享</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbf6ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e141d" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  /* 首頁「全部分享」：照 docs\設計規範.md，跟行程頁同一套 token 與 App 殼。
+     底部三個分頁：分享（分類＋項目卡片）、更新（更新紀錄）、說明（下載到手機、怎麼用）。 */
+  :root {
+    --bg: #fbf6ef; --surface: #ffffff; --surface-2: #fff0e6;
+    --text: #2b2233; --muted: #6f6475; --line: #f0e2d8;
+    --accent: #0b7067; --accent-ink: #ffffff; --accent-soft: #dcf3ef;
+    --coral: #e8625a; --coral-ink: #b8433b; --coral-soft: #ffe7e2; --sun: #ffc65c; --sun-soft: #fff4d6;
+    --warn: #9a4a07; --warn-soft: #fdf0dc;
+    --hero: linear-gradient(165deg, #fff1e4 0%, #ffe2e4 48%, #d8f1ee 100%);
+    --wave-1: #9adcd3; --wave-2: #5bbfb2;
+    --on-photo: #ffffff;
+    --radius: 22px; --shadow: 0 1px 2px rgb(184 67 59 / .05), 0 10px 28px rgb(184 67 59 / .08);
+    --bounce: cubic-bezier(.34, 1.56, .64, 1);
+    --f-hand: "TripHand", "Kaiti TC", "STKaiti", "BiauKai", "DFKai-SB", serif;
+    --f-num: "TripNum", "Iowan Old Style", "Palatino", Georgia, serif;
+    --f-sys: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e141d; --surface: #142030; --surface-2: #1a293b;
+      --text: #f4eff7; --muted: #aaa3b6; --line: #24344a;
+      --accent: #5fd0c2; --accent-ink: #062320; --accent-soft: #143a3a;
+      --coral: #ff8f80; --coral-ink: #ffa597; --coral-soft: #3a2228; --sun: #ffd277; --sun-soft: #33301f;
+      --warn: #f2b25c; --warn-soft: #3a2a12;
+      --hero: linear-gradient(165deg, #1f2546 0%, #2a2140 50%, #103239 100%);
+      --wave-1: #1f5b63; --wave-2: #2b7f84;
+      --shadow: 0 1px 2px rgb(0 0 0 / .35), 0 10px 28px rgb(0 0 0 / .3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--f-sys); }
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .045;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  a { color: var(--accent); }
+  [hidden] { display: none !important; }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .wrap { max-width: 720px; margin: 0 auto;
+    padding: 0 max(16px, env(safe-area-inset-right)) calc(132px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+  h2, .ab-title, .hero-title, .ic-title, .gate b {
+    font-family: var(--f-hand); font-weight: 500; font-synthesis: none; letter-spacing: .01em; word-spacing: -.12em; }
+
+  /* ===== App 殼：標題列、分段、底部分頁 ===== */
+  section.view { animation: none; }
+  .appbar { position: sticky; top: 0; z-index: 25; margin: 0 -16px; padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+    background: var(--bg); background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 1px 0 color-mix(in srgb, var(--line) 60%, transparent); }
+  .ab-title { margin: 0; min-height: 36px; display: flex; align-items: center; font-size: 25px; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg { display: flex; gap: 6px; margin: 10px -16px 0; padding: 0 16px 2px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { flex: 1 0 auto; min-height: 44px; padding: 0 16px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+    background: var(--surface); color: var(--muted); font: inherit; font-size: 14px; font-weight: 650; white-space: nowrap; cursor: pointer;
+    transition: background-color .2s, color .2s, transform .1s ease-out; }
+  .seg button.on { background: var(--text); border-color: var(--text); color: var(--bg); box-shadow: 0 4px 12px rgb(0 0 0 / .14); }
+  .seg button:active { transform: scale(.96); }
+
+  nav.tabbar { position: fixed; z-index: 30; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); max-width: 696px; margin: 0 auto;
+    padding: 5px; border-radius: 26px; background: var(--surface); background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); box-shadow: 0 10px 30px rgb(0 0 0 / .14); }
+  .tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 54px;
+    border: 0; border-radius: 21px; background: none; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .02em; cursor: pointer;
+    transition: background-color .2s, color .2s, transform .1s ease-out; }
+  .tab .ic { display: grid; place-items: center; height: 26px; }
+  .tab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  a.tab { text-decoration: none; }
+  .tab.active { background: var(--coral-soft); color: var(--coral-ink); }
+  .tab:active { transform: scale(.94); }
+  .tab .dot { position: absolute; top: 8px; left: calc(50% + 8px); width: 8px; height: 8px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--surface); }
+
+  .pane > :first-child { margin-top: 16px; }
+
+  /* ===== 封面：有照片放照片，沒有用漸層＋海浪 ===== */
+  .hero { position: relative; min-height: 380px; aspect-ratio: 4 / 5; max-height: 66vh; max-height: 66svh; border-radius: 30px; overflow: hidden;
+    background: var(--hero); color: var(--on-photo); box-shadow: 0 18px 40px rgb(60 30 20 / .18); }
+  .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / .28) 0%, transparent 26%, transparent 44%, rgb(24 12 22 / .78) 100%); }
+  .hero-txt { position: absolute; left: 22px; right: 22px; bottom: 58px; z-index: 1; }
+  .eyebrow { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; opacity: .92; }
+  .hero-title { margin: 4px 0 0; font-size: clamp(40px, 12vw, 58px); line-height: 1.08; text-shadow: 0 2px 14px rgb(0 0 0 / .35); }
+  .cover-credit { position: absolute; right: 12px; top: 10px; z-index: 1; /* 下緣被統計卡蓋住，署名放右上 */ font-size: 10px; color: rgb(255 255 255 / .85); text-shadow: 0 1px 3px rgb(0 0 0 / .6); }
+  .cover-credit a { color: inherit; }
+  .hero.no-photo { color: var(--text); aspect-ratio: auto; min-height: 232px; }
+  .hero.no-photo .hero-title { text-shadow: none; }
+  .hero-art { position: absolute; inset: auto 0 0 0; height: 96px; pointer-events: none; }
+  .hero-art svg { width: 100%; height: 100%; display: block; }
+  .hero-art .w1 { fill: var(--wave-1); opacity: .75; }
+  .hero-art .w2 { fill: var(--wave-2); opacity: .7; }
+  .hero-art .heart { fill: var(--coral); }
+  .hero.no-photo .hero-txt { bottom: auto; top: 26px; }
+
+  /* 浮在封面下緣的統計卡 */
+  .stat { position: relative; z-index: 2; margin: -40px 14px 0; padding: 16px 18px; border-radius: 22px; background: var(--surface); box-shadow: 0 12px 30px rgb(0 0 0 / .12); }
+  .stat-row { display: flex; align-items: baseline; gap: 6px; font-weight: 600; }
+  .stat-row b { font-family: var(--f-num); font-weight: 400; font-size: 46px; line-height: 1; color: var(--coral-ink); }
+  .stat small { display: block; margin-top: 6px; font-size: 14px; line-height: 1.6; color: var(--muted); }
+  .lead { margin: 18px 4px 0; font-size: 17px; line-height: 1.75; }
+
+  /* ===== 分類與項目卡片 ===== */
+  section.cat { margin-top: 28px; }
+  h2 { margin: 0 4px 12px; font-size: 23px; line-height: 1.3; }
+  h2::after { content: ""; display: block; width: 46px; height: 8px; margin-top: 6px; background: var(--coral);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 8'%3E%3Cpath d='M1 5c4-4 7-4 11 0s7 4 11 0 7-4 11 0 7 4 11 0' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") left center/contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 8'%3E%3Cpath d='M1 5c4-4 7-4 11 0s7 4 11 0 7-4 11 0 7 4 11 0' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") left center/contain no-repeat; }
+  .icards { display: grid; gap: 12px; }
+  @media (min-width: 600px) { .icards { grid-template-columns: 1fr 1fr; } }
+  .icard { position: relative; border-radius: 22px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow);
+    border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); transition: transform .1s ease-out, box-shadow .2s; }
+  .icard:active { transform: scale(.98); }
+  .ic-photo { position: relative; margin: 0; }
+  .ic-photo img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: var(--surface-2); }
+  .ic-credit { position: absolute; right: 10px; bottom: 6px; z-index: 2; font-size: 10px; color: rgb(255 255 255 / .88); text-shadow: 0 1px 3px rgb(0 0 0 / .7); }
+  .ic-credit a { position: relative; z-index: 2; color: inherit; }
+  .ic-body { display: flex; gap: 12px; padding: 12px 16px 16px; }
+  .icard.no-photo .ic-body { padding: 16px; }
+  .ic-art { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--coral-soft); color: var(--coral-ink); }
+  .ic-art svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ic-main { flex: 1; min-width: 0; }
+  .ic-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 20px; }
+  .chip { font-size: 12px; font-weight: 700; line-height: 1.6; padding: 1px 9px; border-radius: 8px; background: var(--surface-2); color: var(--muted); }
+  .chip.new { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; background: var(--coral-soft); color: var(--coral-ink); }
+  .chip.new::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--coral); }
+  .ic-date { font-size: 13px; color: var(--muted); }
+  .ic-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .ic-title { flex: 1; min-width: 0; font-size: 21px; line-height: 1.35; color: var(--text); text-decoration: none; }
+  .ic-title::after { content: ""; position: absolute; inset: 0; z-index: 1; }   /* 整張卡都能點 */
+  .ic-go { flex: none; color: var(--muted); }
+  .ic-go svg { width: 20px; height: 20px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ic-sum { margin: 4px 0 0; font-size: 15px; line-height: 1.6; color: var(--muted); }
+
+  /* ===== 更新紀錄 ===== */
+  .card { background: var(--surface); border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+  .card + .card, .card + .install, .install + .card { margin-top: 12px; }
+  ol.log { list-style: none; margin: 0; padding: 4px 16px; }
+  ol.log li { display: grid; grid-template-columns: 56px 1fr; gap: 12px; padding: 13px 0; }
+  ol.log li + li { border-top: 1px solid var(--line); }
+  ol.log time { font-family: var(--f-num); font-size: 17px; line-height: 1.5; color: var(--coral-ink); font-variant-numeric: tabular-nums; }
+  ol.log span { font-size: 15px; line-height: 1.7; }
+
+  /* ===== 說明 ===== */
+  dl.info { margin: 0; display: grid; grid-template-columns: 5.2em 1fr; column-gap: 12px; font-size: 15px; }
+  dl.info dt { padding: 12px 0; color: var(--muted); font-size: 14px; font-weight: 650; border-top: 1px solid var(--line); }
+  dl.info dd { margin: 0; padding: 12px 0; line-height: 1.6; border-top: 1px solid var(--line); }
+  dl.info dt:first-of-type, dl.info dd:first-of-type { border-top: 0; padding-top: 2px; }
+  .install { position: relative; padding: 14px 48px 16px 16px; border-radius: 18px; background: var(--accent-soft); color: var(--text); }
+  .pane > .install + section.cat, .lead + .install { margin-top: 16px; }
+  .install b { display: block; font-size: 16px; color: var(--accent); }
+  .install p { margin: 4px 0 0; font-size: 14px; line-height: 1.6; }
+  .install .go { margin-top: 10px; display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 0;
+    background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 25%, transparent); transition: transform .1s ease-out; }
+  .install .go:active { transform: scale(.96); }
+  .install .x { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; border-radius: 999px; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+  .install .x:active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  footer { margin-top: 28px; font-size: 14px; color: var(--muted); text-align: center; }
+  footer .foot-wave { display: block; width: 120px; height: 14px; margin: 0 auto 8px; background: var(--coral); opacity: .6;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 8'%3E%3Cpath d='M1 5c4-4 7-4 11 0s7 4 11 0 7-4 11 0 7 4 11 0' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center/32px 8px repeat-x;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 8'%3E%3Cpath d='M1 5c4-4 7-4 11 0s7 4 11 0 7-4 11 0 7 4 11 0' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center/32px 8px repeat-x; }
+
+  /* ===== 空狀態、沒金鑰、載入、離線 ===== */
+  .empty { padding: 18px; border-radius: 18px; background: var(--surface-2); color: var(--muted); font-size: 15px; line-height: 1.6; }
+  .empty b { display: block; color: var(--text); }
+  .gate { min-height: 100dvh; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+  .gate b { display: block; margin-bottom: 6px; color: var(--text); font-size: 22px; }
+  .skeleton { height: 18px; border-radius: 8px; background: var(--surface-2); margin: 12px 0; }
+  .offline { position: relative; z-index: 26; margin: 0 -16px; padding: 8px 16px; font-size: 14px; font-weight: 600; text-align: center;
+    background: var(--warn-soft); color: var(--warn); }
+
+  /* ===== 手機手感（mobile-native）：控制項不選字、不等雙擊判斷；hover 只給滑鼠 ===== */
+  button, .tab, .seg button, .icard, .install .go, .install .x {
+    touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .icard:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent), var(--shadow); }
+    .tab:not(.active):hover, .seg button:not(.on):hover { color: var(--text); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    section.view:not([hidden]) .pane:not([hidden]) { animation: fade .22s ease-out both; }
+    .icards > * { animation: rise .3s cubic-bezier(.16, 1, .3, 1) both; }
+    .icards > *:nth-child(2) { animation-delay: .04s; } .icards > *:nth-child(n+3) { animation-delay: .08s; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (prefers-reduced-transparency: reduce) {
+    .appbar { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    nav.tabbar { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app" class="wrap">
+  <div style="padding-top:calc(env(safe-area-inset-top) + 16px)">
+    <div class="skeleton" style="width:40%;height:30px"></div>
+    <div class="skeleton" style="height:min(66svh,460px);border-radius:30px;margin-top:22px"></div>
+    <div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:40%"></div><div class="skeleton"></div>
+  </div>
+</div>
+<script>
+const PAYLOAD = /*__PAYLOAD__*/null;
+const STORE = "sharekey:" + location.pathname.split("/").slice(0, 2).join("/");
+const SEEN = STORE.replace("sharekey:", "seen:");        // 每份分享上次看到的版本
+const SEEN_LOG = STORE.replace("sharekey:", "seenlog:"); // 上次看到的最新一筆更新紀錄
+let DATA = {}, KEY_TEXT = "";
+
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") n.className = v; else n.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) n.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return n;
+};
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const b64u = s => b64(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4));
+const readJSON = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+// 離線可讀：註冊 service worker（同網域、只快取頁面）；沒網路時顯示提示
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register(new URL("./sw.js", location.href)).catch(() => {});
+}
+function offlineBanner() {
+  const old = document.querySelector(".offline");
+  if (navigator.onLine) { old?.remove(); return; }
+  if (!old) document.getElementById("app")?.prepend(el("div", { class: "offline", role: "status" }, "沒有網路，顯示的是上次打開的版本"));
+}
+addEventListener("online", offlineBanner);
+addEventListener("offline", offlineBanner);
+
+// 圖示：線條 SVG，跟著文字顏色
+const svgIc = p => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+const ICONS = {
+  home: svgIc('<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>'),
+  clock: svgIc('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  info: svgIc('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.01"/>'),
+  plane: svgIc('<path d="M10.5 20 13 13.5l5-1.5c1.4-.4 2-1.4 2-2.2s-.9-1.3-2.3-.9L13 10.3 7 4.5 5 5l3.6 6.6-3.8 1.1-2-1.6-1.3.4 1.6 3.4 3.6-.9L5.5 20.4z"/>'),
+  doc: svgIc('<path d="M6.5 3.5h7l4 4v13h-11z"/><path d="M13.5 3.5v4h4M9 12h6M9 15.5h6"/>'),
+  link: svgIc('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+  heart: svgIc('<path d="M12 20s-7-4.3-8.9-8.6C1.7 8.2 3.7 4.6 7.2 4.6c2 0 3.4 1.1 4.8 2.9 1.4-1.8 2.8-2.9 4.8-2.9 3.5 0 5.5 3.6 4.1 6.8C19 15.7 12 20 12 20z"/>'),
+  chev: svgIc('<path d="m9.5 5 7 7-7 7"/>'),
+};
+const ic = (k, cls = "ic") => { const s = el("span", { class: cls, "aria-hidden": "true" }); s.innerHTML = ICONS[k] || ICONS.heart; return s; };
+const TEMPLATE_ICON = { trip: "plane", article: "doc", list: "link" };
+
+// 下載到手機（PWA）：Android Chrome 跳安裝視窗；iPhone 給步驟；LINE 內建瀏覽器不能安裝，先換到外部瀏覽器（LINE 認 openExternalBrowser=1）
+let INSTALL_EVT = null;
+const IS_APP = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); INSTALL_EVT = e; document.querySelectorAll(".install").forEach(b => paintInstall(b)); });
+addEventListener("appinstalled", () => document.querySelectorAll(".install").forEach(b => b.remove()));
+function paintInstall(box) {
+  const ua = navigator.userAgent, key = box.dataset.key || "", keep = box.dataset.keep === "1";
+  const inLine = /\bLine\//i.test(ua), ios = /iPhone|iPad|iPod/.test(ua);
+  let msg, act = null;
+  if (inLine) {
+    msg = "現在是在 LINE 裡面打開的，LINE 沒辦法下載。先換到瀏覽器打開，再按一次下載。";
+    act = el("a", { class: "go", href: location.origin + location.pathname + "?openExternalBrowser=1" + (key ? "#k=" + key : "") }, "用瀏覽器打開");
+  } else if (INSTALL_EVT) {
+    msg = "下載後手機桌面會多一個「分享」圖示，點了直接打開，沒網路也看得到。";
+    act = el("button", { class: "go", type: "button" }, "下載到手機");
+    act.addEventListener("click", async () => { const e = INSTALL_EVT; INSTALL_EVT = null; e.prompt(); const r = await e.userChoice; if (r.outcome === "accepted") box.remove(); else paintInstall(box); });
+  } else if (ios) {
+    msg = "用 Safari 打開這一頁，點下方的「分享」按鈕，選「加入主畫面」。";
+  } else {
+    msg = "點 Chrome 右上角「⋮」，選「加到主畫面」或「安裝應用程式」。";
+  }
+  const x = keep ? null : el("button", { class: "x", type: "button", "aria-label": "先不要" }, "×");
+  x?.addEventListener("click", () => { try { localStorage.setItem("install:hide", "1"); } catch (e) {} box.remove(); });
+  box.replaceChildren(...[el("b", {}, "下載到手機"), el("p", {}, msg), act, x].filter(Boolean));
+}
+// keep：「說明」分頁一直顯示，不給關閉鈕
+function installCard(key, keep = false) {
+  if (IS_APP) return null;
+  if (!keep) { try { if (localStorage.getItem("install:hide")) return null; } catch (e) {} }
+  const box = el("div", { class: "install", "data-key": key || "", "data-keep": keep ? "1" : "0" });
+  paintInstall(box);
+  return box;
+}
+
+const HERO_ART = `<svg viewBox="0 0 400 96" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+  <path class="heart" d="M330 46s-12-7.4-15.4-14.7c-2.4-5.4 1-11.6 7-11.6 3.4 0 5.8 1.9 8.4 5 2.6-3.1 5-5 8.4-5 6 0 9.4 6.2 7 11.6C342 38.6 330 46 330 46z" opacity=".85"/>
+  <path class="heart" d="M362 28s-6-3.7-7.7-7.4c-1.2-2.7.5-5.8 3.5-5.8 1.7 0 2.9 1 4.2 2.5 1.3-1.5 2.5-2.5 4.2-2.5 3 0 4.7 3.1 3.5 5.8C368 24.3 362 28 362 28z" opacity=".55"/>
+  <path class="w1" d="M0 58c30-14 60-14 90 0s60 14 90 0 60-14 90 0 60 14 90 0 30-10 40-6V96H0z"/>
+  <path class="w2" d="M0 74c26-10 52-10 78 0s52 10 78 0 52-10 78 0 52 10 78 0 52-10 88-2V96H0z"/>
+</svg>`;
+const gate = (t, m) => document.getElementById("app").replaceChildren(el("div", { class: "gate" }, el("div", {}, el("b", {}, t), m)));
+
+// 照片、字型都嵌在加密資料（build 放進 _photos／_fonts），頁面不從外部載
+const photoSrc = ph => ph && (ph.src || (DATA._photos || [])[ph.ref]);
+const ext = (href, cls, ...kids) => el("a", { class: cls, href, target: "_blank", rel: "noopener" }, ...kids);
+const credit = (ph, cls) => ph ? el("small", { class: cls }, "照片：", ph.url ? ext(ph.url, null, ph.credit) : ph.credit, `，${ph.license}`) : null;
+function loadFonts(f) {
+  if (!f || !window.FontFace) return;
+  const FAM = { hand: "TripHand", num: "TripNum" };
+  for (const [k, data] of Object.entries(f)) {
+    if (!FAM[k]) continue;
+    try { const ff = new FontFace(FAM[k], b64(data).buffer, { display: "swap" }); document.fonts.add(ff); ff.load().catch(() => {}); } catch (e) {}
+  }
+}
+
+function getKey() {
+  const m = location.hash.match(/k=([A-Za-z0-9_-]+)/);
+  if (m) { try { localStorage.setItem(STORE, m[1]); } catch (e) {} return m[1]; }
+  try { return localStorage.getItem(STORE); } catch (e) { return null; }
+}
+async function decrypt(keyText) {
+  const key = await crypto.subtle.importKey("raw", b64u(keyText), "AES-GCM", false, ["decrypt"]);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(PAYLOAD.iv) }, key, b64(PAYLOAD.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+// ===== 分類：項目的 category（沒有就用 tag）；順序先照 site.json 的 categories，再照出現順序 =====
+const catOf = it => it.category || it.tag || "分享";
+function categories(d) {
+  const used = [...new Set((d.items || []).map(catOf))];
+  const conf = (d.categories || []).filter(c => used.includes(c.name));
+  return conf.concat(used.filter(n => !conf.some(c => c.name === n)).map(n => ({ name: n })));
+}
+
+// ===== 「新」：上次來之後內容有變的分享。第一次打開全部當看過，點進去那份就不再標 =====
+let SEEN_MAP = {};
+function initSeen(items) {
+  SEEN_MAP = readJSON(SEEN);
+  if (!SEEN_MAP || typeof SEEN_MAP !== "object") { SEEN_MAP = Object.fromEntries(items.map(i => [i.slug, i.ver])); writeJSON(SEEN, SEEN_MAP); }
+}
+const isNew = it => !!it.ver && SEEN_MAP[it.slug] !== it.ver;
+const markSeen = it => { SEEN_MAP[it.slug] = it.ver; writeJSON(SEEN, SEEN_MAP); };
+const logSig = d => (d.changelog || [])[0] ? `${d.changelog[0].date} ${d.changelog[0].text}` : "";
+
+function card(it, catIcon) {
+  const ph = it.photo, src = photoSrc(ph), fresh = isNew(it);
+  const link = el("a", { class: "ic-title", href: `./${it.slug}/#k=${KEY_TEXT}` }, it.title);
+  link.addEventListener("click", () => markSeen(it));
+  return el("article", { class: "icard" + (src ? "" : " no-photo") },
+    src ? el("figure", { class: "ic-photo" }, el("img", { src, alt: ph.alt || "", loading: "lazy", decoding: "async" }), credit(ph, "ic-credit")) : null,
+    el("div", { class: "ic-body" },
+      src ? null : ic(catIcon, "ic-art"),
+      el("div", { class: "ic-main" },
+        el("div", { class: "ic-meta" },
+          fresh ? el("span", { class: "chip new" }, "新") : null,
+          it.tag && it.tag !== catOf(it) ? el("span", { class: "chip" }, it.tag) : null,
+          it.date ? el("span", { class: "ic-date" }, it.date) : null),
+        el("div", { class: "ic-row" }, link, ic("chev", "ic-go")),
+        it.summary ? el("p", { class: "ic-sum" }, it.summary) : null)));
+}
+function cards(list, cats) {
+  const iconOf = it => (cats.find(c => c.name === catOf(it)) || {}).icon || TEMPLATE_ICON[it.template] || "heart";
+  return el("div", { class: "icards" }, list.map(it => card(it, iconOf(it))));
+}
+const emptyBox = (t, m) => el("div", { class: "empty" }, el("b", {}, t), m);
+
+function hero(d, items) {
+  // 封面只用 site.json 的 cover；不借項目的照片，免得封面和第一張卡片同一張
+  const ph = d.photo, src = photoSrc(ph);
+  const up = /^\d{4}-(\d{2})-(\d{2})/.exec(d.updated || "");
+  const h = el("div", { class: "hero" + (src ? "" : " no-photo") },
+    src ? el("img", { class: "hero-img", src, alt: ph.alt || "", decoding: "async" }) : null,
+    src ? el("div", { class: "shade" }) : null,
+    el("div", { class: "hero-txt" },
+      up ? el("p", { class: "eyebrow" }, `最後更新 ${up[1]}/${up[2]}`) : null,
+      el("p", { class: "hero-title", role: "heading", "aria-level": "2" }, d.title)),
+    src ? credit(ph, "cover-credit") : null);
+  if (!src) { const art = el("div", { class: "hero-art", "aria-hidden": "true" }); art.innerHTML = HERO_ART; h.prepend(art); }
+  return h;
+}
+function statCard(d, items) {
+  const n = items.filter(isNew).length, log = (d.changelog || [])[0];
+  return el("div", { class: "stat" },
+    el("div", { class: "stat-row" }, el("b", {}, items.length), el("span", {}, `份分享給${d.you || "你"}`)),
+    el("small", {}, n ? `其中 ${n} 份有新內容，卡片上標了「新」。` : log ? `最近一次更新（${log.date}）：${log.text}` : "重新整理就會看到最新版。"));
+}
+
+function homePane(d, cats, sub) {
+  const items = d.items || [];
+  if (sub !== "all") {
+    const list = items.filter(it => catOf(it) === sub);
+    return el("div", {}, list.length ? cards(list, cats) : emptyBox("這一類還沒有東西", "有新的會放在這裡，重新整理就看得到。"));
+  }
+  if (!items.length) return el("div", {}, hero(d, items), d.intro ? el("p", { class: "lead" }, d.intro) : null,
+    el("section", { class: "cat" }, emptyBox("目前還沒有內容", "之後有東西會放在這裡，重新整理就看得到。")));
+  return el("div", {},
+    hero(d, items), statCard(d, items),
+    d.intro ? el("p", { class: "lead" }, d.intro) : null,
+    installCard(KEY_TEXT),
+    cats.map(c => el("section", { class: "cat" }, el("h2", {}, c.name), cards(items.filter(it => catOf(it) === c.name), cats))));
+}
+function logPane(d) {
+  const log = d.changelog || [];
+  return el("div", {}, log.length
+    ? el("div", { class: "card", style: "padding:0" }, el("ol", { class: "log" }, log.map(c => el("li", {}, el("time", {}, c.date), el("span", {}, c.text)))))
+    : emptyBox("還沒有更新紀錄", "內容有變動時會記在這裡。"));
+}
+function helpPane(d) {
+  const up = (d.updated || "").replace(/^(\d{4})-(\d{2})-(\d{2})/, "$2/$3");
+  return el("div", {},
+    installCard(KEY_TEXT, true),
+    el("div", { class: "card" }, el("dl", { class: "info" },
+      el("dt", {}, "最新版"), el("dd", {}, `最後更新 ${up}。往下拉重新整理，就會看到最新版。`),
+      el("dt", {}, "沒網路"), el("dd", {}, "打開過一次之後，沒網路也看得到上次的版本。"),
+      el("dt", {}, "隱私"), el("dd", {}, "內容有加密，只有拿到這個連結的人打得開；打勾和筆記只存在這支手機。"),
+      el("dt", {}, "換手機"), el("dd", {}, "換手機或清除瀏覽資料後，要再用一次完整的分享連結打開。"))),
+    el("footer", {}, el("span", { class: "foot-wave", "aria-hidden": "true" }), "下載到手機後，點桌面的圖示就能打開。"));
+}
+
+let GO = () => {};
+function render(d) {
+  DATA = d;
+  loadFonts(d._fonts);
+  document.title = d.title || "分享";
+  const items = d.items || [], cats = categories(d);
+  initSeen(items);
+  if (readJSON(SEEN_LOG) === null) writeJSON(SEEN_LOG, logSig(d));
+
+  const TABS = [
+    { key: "home", label: "分享", icon: "home", title: "全部分享",
+      subs: [{ key: "all", label: "全部" }].concat(cats.length > 1 ? cats.map(c => ({ key: c.name, label: c.name })) : []), build: k => homePane(d, cats, k) },
+    { key: "log", label: "更新", icon: "clock", title: "更新紀錄", subs: [{ key: "list" }], build: () => logPane(d) },
+    { key: "help", label: "說明", icon: "info", title: "使用說明", subs: [{ key: "help" }], build: () => helpPane(d) },
+  ];
+  const views = new Map(), last = {};
+  TABS.forEach(t => {
+    let seg = null;
+    if (t.subs.length > 1) {
+      seg = el("div", { class: "seg", role: "tablist", "aria-label": "分類" });
+      t.subs.forEach(s => { const b = el("button", { type: "button", role: "tab", "data-sub": s.key }, s.label); b.addEventListener("click", () => GO(t.key, s.key)); seg.append(b); });
+    }
+    const panes = new Map(t.subs.map(s => [s.key, el("div", { class: "pane", hidden: true })]));
+    const v = el("section", { class: "view", hidden: true }, el("header", { class: "appbar" }, el("h1", { class: "ab-title" }, t.title), seg), [...panes.values()]);
+    views.set(t.key, { t, v, panes, seg, built: new Set() });
+  });
+  const dot = el("span", { class: "dot", hidden: logSig(d) === readJSON(SEEN_LOG) }, el("span", { class: "vh" }, "（有新紀錄）"));
+  const tabbar = el("nav", { class: "tabbar", "aria-label": "主要分頁" }, el("div", { class: "tabs" }, TABS.map(t => {
+    const b = el("button", { type: "button", class: "tab", "data-tab": t.key }, ic(t.icon), t.label, t.key === "log" ? dot : null);
+    b.addEventListener("click", () => GO(t.key, last[t.key] || t.subs[0].key));
+    return b;
+  })));
+
+  GO = (tab, sub, push = true) => {
+    const V = views.get(tab) || views.get("home");
+    if (!V.panes.has(sub)) sub = V.t.subs[0].key;
+    views.forEach((x, k) => { x.v.hidden = k !== V.t.key; });
+    V.panes.forEach((p, k) => {
+      p.hidden = k !== sub;
+      if (k === sub && !V.built.has(k)) { p.append(V.t.build(k)); V.built.add(k); }
+    });
+    V.seg?.querySelectorAll("button").forEach(b => { const on = b.dataset.sub === sub; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
+    tabbar.querySelectorAll(".tab").forEach(b => { const on = b.dataset.tab === V.t.key; b.classList.toggle("active", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    if (V.t.key === "log") { writeJSON(SEEN_LOG, logSig(d)); dot.hidden = true; }
+    last[V.t.key] = sub;
+    window.scrollTo(0, 0);
+    const st = { tab: V.t.key, sub };
+    if (push) history.pushState(st, ""); else history.replaceState(st, "");
+  };
+  addEventListener("popstate", e => { if (e.state && e.state.tab) GO(e.state.tab, e.state.sub, false); });
+
+  document.getElementById("app").replaceChildren(...[...views.values()].map(x => x.v), tabbar);
+  offlineBanner();
+  const st = history.state;
+  GO(st && st.tab ? st.tab : "home", st && st.tab ? st.sub : "all", false);
+}
+
+(async () => {
+  if (!PAYLOAD) return gate("還沒有內容", "這一頁還沒產生資料。");
+  if (!window.crypto?.subtle) return gate("瀏覽器不支援", "請用 Safari、Chrome 等新版瀏覽器打開。");
+  const key = getKey();
+  if (!key) return gate("需要分享連結", "請用對方傳給你的完整連結打開這一頁。");
+  try { KEY_TEXT = key; render(await decrypt(key)); }
+  catch (e) { gate("連結不完整或已更換", "請跟對方要最新的分享連結。"); }
+})();
+</script>
+</body>
+</html>

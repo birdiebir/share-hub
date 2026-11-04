@@ -1,0 +1,25 @@
+{
+  "title": "給某人",
+  "intro": "整理給你的東西都會放在這裡，重新整理就是最新版。",
+  "fonts": {
+    "hand": "../fonts/LXGWWenKaiTC-Medium.ttf",
+    "num": "../fonts/DMSerifDisplay-Regular.ttf"
+  },
+  "items": [
+    {
+      "slug": "trip-2026",
+      "title": "某地 3 天 2 夜",
+      "date": "1/1～1/3",
+      "summary": "一句話摘要",
+      "tag": "旅行",
+      "template": "trip",
+      "data": "trip.json"
+    }
+  ],
+  "changelog": [
+    {
+      "date": "1/1",
+      "text": "開站"
+    }
+  ]
+}
