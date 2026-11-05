@@ -1,0 +1,99 @@
+/* share-hub 共用 CSS。build.py 把模板 <style> 裡的 base.css 標記（PART 標記，見 README）換成這份內容，放在每個模板 <style> 的最前面。
+   只放「hub 和 trip 兩邊最後生效的值相同」或「差異小到模板用幾行覆蓋就能還原」的東西；模板自己的規則寫在後面，同樣的選擇器權重下後寫的贏。
+   照 docs\設計規範.md：顏色只用 token（淺／深色各一組）、圓角 22、字型三層（手寫楷／襯線數字／系統黑體）。
+   沒抽的（兩邊不同、抽了會改畫面）：h2 外觀、hero、pane 間距、dl.info、section.view 動畫、reduced-motion／reduced-transparency 區塊。 */
+:root {
+  --bg: #fbf6ef; --surface: #ffffff; --surface-2: #fff0e6;
+  --text: #2b2233; --muted: #6f6475; --line: #f0e2d8;
+  --accent: #0b7067; --accent-ink: #ffffff; --accent-soft: #dcf3ef;
+  --coral: #e8625a; --coral-ink: #b8433b; --coral-soft: #ffe7e2; --sun: #ffc65c; --sun-soft: #fff4d6;
+  --warn: #9a4a07; --warn-soft: #fdf0dc;
+  --hero: linear-gradient(165deg, #fff1e4 0%, #ffe2e4 48%, #d8f1ee 100%);
+  --wave-1: #9adcd3; --wave-2: #5bbfb2;
+  --on-photo: #ffffff;
+  --radius: 22px; --shadow: 0 1px 2px rgb(184 67 59 / .05), 0 10px 28px rgb(184 67 59 / .08);
+  --bounce: cubic-bezier(.34, 1.56, .64, 1);
+  --f-hand: "TripHand", "Kaiti TC", "STKaiti", "BiauKai", "DFKai-SB", serif;
+  --f-num: "TripNum", "Iowan Old Style", "Palatino", Georgia, serif;
+  --f-sys: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e141d; --surface: #142030; --surface-2: #1a293b;
+    --text: #f4eff7; --muted: #aaa3b6; --line: #24344a;
+    --accent: #5fd0c2; --accent-ink: #062320; --accent-soft: #143a3a;
+    --coral: #ff8f80; --coral-ink: #ffa597; --coral-soft: #3a2228; --sun: #ffd277; --sun-soft: #33301f;
+    --warn: #f2b25c; --warn-soft: #3a2a12;
+    --hero: linear-gradient(165deg, #1f2546 0%, #2a2140 50%, #103239 100%);
+    --wave-1: #1f5b63; --wave-2: #2b7f84;
+    --shadow: 0 1px 2px rgb(0 0 0 / .35), 0 10px 28px rgb(0 0 0 / .3);
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--f-sys); }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+a { color: var(--accent); }
+[hidden] { display: none !important; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wrap { max-width: 720px; margin: 0 auto;
+  padding: 0 max(16px, env(safe-area-inset-right)) calc(132px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+h2, .ab-title, .hero-title { font-family: var(--f-hand); font-weight: 500; font-synthesis: none; letter-spacing: .01em; }
+.ab-title, .hero-title { word-spacing: -.12em; }
+
+/* ===== App 殼：標題列、分段、底部分頁 ===== */
+.appbar { position: sticky; top: 0; z-index: 25; margin: 0 -16px; padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+  background: var(--bg); background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 1px 0 color-mix(in srgb, var(--line) 60%, transparent); }
+.ab-title { margin: 0; min-height: 36px; display: flex; align-items: center; font-size: 25px; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seg { display: flex; gap: 6px; margin: 10px -16px 0; padding: 0 16px 2px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.seg::-webkit-scrollbar { display: none; }
+.seg button { flex: 1 0 auto; min-height: 44px; padding: 0 16px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  background: var(--surface); color: var(--muted); font: inherit; font-size: 14px; font-weight: 650; white-space: nowrap; cursor: pointer;
+  transition: background-color .2s, color .2s, transform .1s ease-out; }
+.seg button.on { background: var(--text); border-color: var(--text); color: var(--bg); box-shadow: 0 4px 12px rgb(0 0 0 / .14); }
+.seg button:active { transform: scale(.96); }
+
+nav.tabbar { position: fixed; z-index: 30; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); max-width: 696px; margin: 0 auto;
+  padding: 5px; border-radius: 26px; background: var(--surface); background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); box-shadow: 0 10px 30px rgb(0 0 0 / .14); }
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 54px;
+  border: 0; border-radius: 21px; background: none; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .02em; cursor: pointer;
+  transition: background-color .2s, color .2s, transform .1s ease-out; }
+.tab .ic { display: grid; place-items: center; height: 26px; }
+.tab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+a.tab { text-decoration: none; }
+.tab.active { background: var(--coral-soft); color: var(--coral-ink); }
+.tab:active { transform: scale(.94); }
+.tab .dot { position: absolute; top: 8px; left: calc(50% + 8px); width: 8px; height: 8px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--surface); }
+
+/* ===== 卡片、安裝卡、離線條、空狀態、沒金鑰、載入 ===== */
+.card { background: var(--surface); border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+.install { position: relative; padding: 14px 48px 16px 16px; border-radius: 18px; background: var(--accent-soft); color: var(--text); }
+.install b { display: block; font-size: 16px; color: var(--accent); }
+.install p { margin: 4px 0 0; font-size: 14px; line-height: 1.6; }
+.install .go { margin-top: 10px; display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 0;
+  background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 25%, transparent); transition: transform .1s ease-out; }
+.install .go:active { transform: scale(.96); }
+.install .x { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; border-radius: 999px; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+.install .x:active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.offline { position: relative; z-index: 26; margin: 0 -16px; padding: 8px 16px; font-size: 14px; font-weight: 600; text-align: center;
+  background: var(--warn-soft); color: var(--warn); }
+.empty { padding: 18px; border-radius: 18px; background: var(--surface-2); color: var(--muted); font-size: 15px; line-height: 1.6; }
+.empty b { display: block; color: var(--text); }
+.gate { min-height: 100dvh; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+.gate b { display: block; margin-bottom: 6px; color: var(--text); }
+.skeleton { height: 18px; border-radius: 8px; background: var(--surface-2); margin: 12px 0; }
+footer .foot-wave { display: block; width: 120px; height: 14px; margin: 0 auto 8px; background: var(--coral); opacity: .6;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 8'%3E%3Cpath d='M1 5c4-4 7-4 11 0s7 4 11 0 7-4 11 0 7 4 11 0' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center/32px 8px repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 8'%3E%3Cpath d='M1 5c4-4 7-4 11 0s7 4 11 0 7-4 11 0 7 4 11 0' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center/32px 8px repeat-x; }
+
+/* ===== 手機手感（mobile-native）：控制項不選字、不等雙擊判斷；各模板自己的卡片、按鈕在模板裡補進同一組；滑鼠 hover 各模板自己寫（要包在 (hover: hover) and (pointer: fine) 裡） ===== */
+button, .tab, .seg button, .install .go, .install .x {
+  touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

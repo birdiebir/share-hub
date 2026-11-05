@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>分享</title>
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbf6ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e141d" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  /*__PART:base.css__*/
+  /* 資源清單模板：照 docs\設計規範.md。底部兩個分頁「清單」「更多」；清單上方用標籤篩選（同一個畫面內切換，不換頁）。
+     連結只收 https（build 驗證擋一次，這裡再擋一次）；全部用 createElement／textContent 組，資料裡的 HTML 一律當文字。 */
+  .pane > :first-child { margin-top: 16px; }
+  .pane { padding-bottom: 8px; }
+  .gate b { font-size: 18px; }
+  .ab-title { display: block; line-height: 36px; }   /* 標題可能很長：用 block 才會用 … 截斷 */
+  .tab:active, .seg button:active { transition-duration: .1s; }
+
+  /* 標籤篩選列：放在標題列下，跟分段一樣可以橫滑；選中的用深色實心 */
+  .seg.tagbar { margin-bottom: 0; }
+  .seg.tagbar button { flex: 0 0 auto; }
+
+  .rs-cover { position: relative; margin: 0; border-radius: 26px; overflow: hidden; box-shadow: 0 16px 34px rgb(0 0 0 / .14); background: var(--surface-2); }
+  .rs-cover img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+  .rs-cover .cr { position: absolute; right: 10px; bottom: 6px; font-size: 10px; color: rgb(255 255 255 / .88); text-shadow: 0 1px 3px rgb(0 0 0 / .7); }
+  .rs-cover .cr a { color: inherit; }
+  .rs-meta { margin: 14px 4px 0; font-size: 15px; line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; }
+  .rs-meta b { display: block; margin-bottom: 2px; font-family: var(--f-hand); font-weight: 500; font-synthesis: none; font-size: 19px; line-height: 1.4; color: var(--text); }
+  .lead { margin: 14px 4px 0; font-size: 17px; line-height: 1.75; overflow-wrap: anywhere; }
+
+  section.grp { margin-top: 24px; }
+  .pane > div > :first-child { margin-top: 0; }
+  .grp-h { display: flex; align-items: center; gap: 10px; margin: 0 4px 10px; font-size: 21px; line-height: 1.3; font-family: var(--f-hand); font-weight: 500; font-synthesis: none; letter-spacing: .01em; }
+  .grp-h > span:not([class]) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .g-ic { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--coral-soft); color: var(--coral-ink); }
+  .g-ic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .grp:nth-of-type(3n+2) .g-ic { background: var(--accent-soft); color: var(--accent); }
+  .grp:nth-of-type(3n) .g-ic { background: var(--sun-soft); color: color-mix(in srgb, var(--sun) 40%, var(--coral-ink)); }
+  .grp-n { font-family: var(--f-sys); font-size: 13px; font-weight: 700; color: var(--muted); background: var(--surface-2); border-radius: 999px; padding: 2px 10px; }
+  .grp .card { padding: 4px 16px; }
+
+  ul.rs { list-style: none; margin: 0; padding: 0; }
+  ul.rs li { display: flex; gap: 12px; padding: 13px 0; }
+  ul.rs li + li { border-top: 1px solid var(--line); }
+  .rs-img { flex: none; width: 64px; height: 64px; border-radius: 14px; object-fit: cover; background: var(--surface-2); }
+  .rs-main { flex: 1; min-width: 0; }
+  .rs-t { display: block; font-size: 16px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+  a.rs-t { color: var(--text); text-decoration: none; }
+  a.rs-t::after { content: " ↗"; font-size: 12px; font-weight: 600; color: var(--accent); }
+  .rs-host { display: block; font-size: 12px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+  .rs-note { margin: 4px 0 0; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+  .rs-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .rs-tag { max-width: 100%; overflow-wrap: anywhere; font-size: 12px; font-weight: 700; line-height: 1.6; padding: 1px 9px; border-radius: 999px; background: var(--coral-soft); color: var(--coral-ink); }
+  .rs-date { font-size: 12px; color: var(--muted); }
+  .rs-main .cr { display: block; margin-top: 6px; font-size: 10px; color: var(--muted); }
+  .rs-main .cr a { color: inherit; }
+
+  .more-sec { margin-top: 24px; }
+  .more-sec > h2 { margin: 0 4px 12px; font-size: 21px; line-height: 1.3; }
+  ul.src { margin: 0; padding-left: 18px; font-size: 14px; }
+  ul.src li { margin: 4px 0; }
+  ul.src a { overflow-wrap: anywhere; }
+  ol.log { list-style: none; margin: 0; padding: 4px 16px; }
+  ol.log li { display: grid; grid-template-columns: 56px 1fr; gap: 12px; padding: 13px 0; }
+  ol.log li + li { border-top: 1px solid var(--line); }
+  ol.log time { font-family: var(--f-num); font-size: 17px; line-height: 1.5; color: var(--coral-ink); font-variant-numeric: tabular-nums; }
+  ol.log span { font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+  ul.menu { list-style: none; margin: 0; padding: 4px 0; border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); }
+  ul.menu a { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 6px 14px; color: var(--text); font-size: 16px; font-weight: 600; text-decoration: none; }
+  ul.menu a:active { background: var(--surface-2); }
+  ul.menu span:not([class]) { flex: 1; }
+  .menu-ic { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+  .menu-ic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .menu-go { color: var(--muted); }
+  .menu-go svg { width: 20px; height: 20px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .install + .more-sec, .install + ul.menu { margin-top: 16px; }
+  .updated { margin: 22px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
+  footer { margin-top: 28px; font-size: 14px; color: var(--muted); text-align: center; }
+
+  /* 手機手感：連結列也不選字；hover 只給滑鼠 */
+  ul.menu a, a.rs-t { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .tab:not(.active):hover, .seg button:not(.on):hover { color: var(--text); }
+    a.rs-t:hover { color: var(--accent); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    section.view:not([hidden]) .pane:not([hidden]) { animation: fade .22s ease-out both; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (prefers-reduced-transparency: reduce) {
+    .appbar { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    nav.tabbar { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app" class="wrap">
+  <div style="padding-top:calc(env(safe-area-inset-top) + 16px)">
+    <div class="skeleton" style="width:40%;height:30px"></div>
+    <div class="skeleton" style="height:200px;border-radius:26px;margin-top:22px"></div>
+    <div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:40%"></div><div class="skeleton"></div>
+  </div>
+</div>
+<script>
+const PAYLOAD = /*__PAYLOAD__*/null;
+/*__PART:core.js__*/
+let DATA = {}, KEY_TEXT = "";
+registerSW("../sw.js");
+IC_FALLBACK = "link";
+
+// 連結只收 https；網域只在頁面上顯示，不連過去
+const okUrl = u => typeof u === "string" && u.length > 8 && /^https:\/\/[^\s<>"'`]+$/.test(u);
+const hostOf = u => { try { return new URL(u).hostname; } catch (e) { return ""; } };
+const itemsOf = d => (Array.isArray(d.items) ? d.items : []).filter(it => it && typeof it === "object" && typeof it.title === "string");
+const tagsOf = it => (Array.isArray(it.tags) ? it.tags : []).filter(t => typeof t === "string" && t.trim() !== "");
+// 標籤清單：照第一次出現的順序；標籤序號從 1 開始
+const tagList = d => [...new Set(itemsOf(d).flatMap(tagsOf))];
+const OTHER = "其他";
+
+function itemRow(it) {
+  const src = photoSrc(it.photo), ok = okUrl(it.url), tags = tagsOf(it);
+  return el("li", {},
+    src ? el("img", { class: "rs-img", src, alt: it.photo.alt || "", loading: "lazy", decoding: "async" }) : null,
+    el("div", { class: "rs-main" },
+      ok ? el("a", { class: "rs-t", href: it.url, target: "_blank", rel: "noopener noreferrer" }, it.title) : el("span", { class: "rs-t" }, it.title),
+      ok ? el("span", { class: "rs-host" }, hostOf(it.url)) : null,
+      it.note ? el("p", { class: "rs-note" }, it.note) : null,
+      tags.length || it.date ? el("div", { class: "rs-tags" }, tags.map(t => el("span", { class: "rs-tag" }, t)), it.date ? el("span", { class: "rs-date" }, it.date) : null) : null,
+      src ? credit(it.photo, "cr") : null));
+}
+// 依 group 分卡片：順序先照 groups 設定，再照出現順序；沒 group 的歸「其他」放最後
+function groupsOf(d, list) {
+  const conf = (Array.isArray(d.groups) ? d.groups : []).filter(g => g && typeof g.name === "string");
+  const out = new Map(conf.map(g => [g.name, { name: g.name, icon: g.icon, items: [] }]));
+  list.forEach(it => {
+    const n = typeof it.group === "string" && it.group.trim() ? it.group : OTHER;
+    if (!out.has(n)) out.set(n, { name: n, icon: null, items: [] });
+    out.get(n).items.push(it);
+  });
+  const all = [...out.values()].filter(g => g.items.length);
+  return all.filter(g => g.name !== OTHER).concat(all.filter(g => g.name === OTHER));
+}
+function listPane(d, tag, head) {
+  const all = itemsOf(d), shown = tag ? all.filter(it => tagsOf(it).includes(tag)) : all;
+  const cv = d.cover, csrc = photoSrc(cv);
+  const top = head ? [
+    csrc ? el("figure", { class: "rs-cover" }, el("img", { src: csrc, alt: cv.alt || "", decoding: "async" }), credit(cv, "cr")) : null,
+    d.subtitle ? el("p", { class: "rs-meta" }, el("b", {}, d.subtitle)) : null,
+    d.intro ? el("p", { class: "lead" }, d.intro) : null] : [];
+  const groups = groupsOf(d, shown);
+  return el("div", {}, top,
+    groups.length ? groups.map(g => el("section", { class: "grp" },
+      el("h2", { class: "grp-h" }, ic(g.icon || "link", "g-ic"), el("span", {}, g.name), el("span", { class: "grp-n" }, g.items.length)),
+      el("div", { class: "card" }, el("ul", { class: "rs" }, g.items.map(itemRow)))))
+      : el("div", { class: "empty" }, el("b", {}, "沒有符合的項目"), tag ? "換一個標籤，或選「全部」。" : "目前還沒有內容。"));
+}
+function morePane(d) {
+  const src = (d.sources || []).filter(s => s && okUrl(s.url)), log = d.changelog || [];
+  const up = (d.updated || "").replace(/^(\d{4})-(\d{2})-(\d{2})/, "$2/$3");
+  return el("div", {},
+    installCard(KEY_TEXT, true),
+    el("ul", { class: "menu" }, el("li", {}, el("a", { href: "../#k=" + KEY_TEXT }, ic("home", "menu-ic"), el("span", {}, "全部分享"), ic("chev", "menu-go")))),
+    src.length ? el("section", { class: "more-sec" }, el("h2", {}, "資料來源"), el("div", { class: "card" }, el("ul", { class: "src" }, src.map(s => el("li", {}, ext(s.url, null, s.text || s.url)))))) : null,
+    log.length ? el("section", { class: "more-sec" }, el("h2", {}, "更新紀錄"),
+      el("div", { class: "card", style: "padding:0" }, el("ol", { class: "log" }, log.map(c => el("li", {}, el("time", {}, c.date || ""), el("span", {}, c.text || "")))))) : null,
+    up ? el("p", { class: "updated" }, `最後更新 ${up}・重新整理就是最新的`) : null,
+    el("footer", {}, el("span", { class: "foot-wave", "aria-hidden": "true" }), "下載到手機後，點桌面的圖示就能打開。"));
+}
+
+let GO = () => {};
+function render(d) {
+  DATA = d;
+  loadFonts(d._fonts);
+  const title = d.title || "分享";
+  document.title = title;
+  const tags = tagList(d);
+  let tagIdx = 0;   // 0＝全部；1 起＝tags[tagIdx - 1]
+  const view = {};  // { list: 清單畫面, more: 更多畫面 }
+
+
+  // 清單畫面：標題列下是標籤篩選列（有標籤才顯示）；切標籤只換下面的內容
+  const body = el("div", { class: "pane" });
+  let bar = null;
+  const paint = () => {
+    body.replaceChildren(listPane(d, tagIdx ? tags[tagIdx - 1] : null, tagIdx === 0));
+    bar?.querySelectorAll("button").forEach(b => { const on = +b.dataset.tag === tagIdx; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  };
+  if (tags.length) {
+    bar = el("div", { class: "seg tagbar", role: "group", "aria-label": "用標籤篩選" });
+    ["全部", ...tags].forEach((t, n) => {
+      const b = el("button", { type: "button", "data-tag": n, "aria-pressed": "false" }, t);
+      b.addEventListener("click", () => SET_TAG(tagIdx === n ? 0 : n));
+      bar.append(b);
+    });
+  }
+  const listView = el("section", { class: "view", "data-view": "list", hidden: true }, el("header", { class: "appbar" }, el("h1", { class: "ab-title" }, title), bar), body);
+  const morePaneEl = el("div", { class: "pane" });
+  const moreView = el("section", { class: "view", "data-view": "more", hidden: true }, el("header", { class: "appbar" }, el("h1", { class: "ab-title" }, "更多")), morePaneEl);
+  view.list = listView; view.more = moreView;
+  let moreBuilt = false;
+
+  const TABS = [{ key: "list", label: "清單", icon: "link" }, { key: "more", label: "更多", icon: "more" }];
+  const tabbar = el("nav", { class: "tabbar", "aria-label": "主要分頁" }, el("div", { class: "tabs" }, TABS.map(t => {
+    const b = el("button", { type: "button", class: "tab", "data-tab": t.key }, ic(t.icon), t.label);
+    b.addEventListener("click", () => GO(t.key, tagIdx));
+    return b;
+  })));
+
+  GO = (tab, n, push = true) => {
+    tab = tab === "more" ? "more" : "list";
+    if (tab === "list") { n = tags[n - 1] ? n : 0; tagIdx = n; paint(); }
+    if (tab === "more" && !moreBuilt) { morePaneEl.append(morePane(d)); moreBuilt = true; }
+    view.list.hidden = tab !== "list"; view.more.hidden = tab !== "more";
+    tabbar.querySelectorAll(".tab").forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle("active", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    window.scrollTo(0, 0);
+    const st = { tab, n: tab === "list" ? n : tagIdx };
+    if (push) history.pushState(st, ""); else history.replaceState(st, "");
+  };
+  const SET_TAG = n => GO("list", n);
+  addEventListener("popstate", e => { if (e.state && e.state.tab) GO(e.state.tab, e.state.n, false); });
+
+  document.getElementById("app").replaceChildren(listView, moreView, tabbar);
+  offlineBanner();
+  // 開頁停在哪：瀏覽紀錄優先；再來是網址 ?view=list-2／more；都沒有就是全部
+  const st = history.state, qv = new URLSearchParams(location.search).get("view") || "";
+  const qm = /^list(?:-(\d{1,3}))?$/.exec(qv);
+  if (st && st.tab) GO(st.tab, st.n, false);
+  else if (qv === "more" || qm) {
+    GO(qv === "more" ? "more" : "list", qm && qm[1] ? +qm[1] : 0, false);
+    history.replaceState(history.state, "", location.pathname + location.hash);   // 套用後清掉 ?view
+  } else GO("list", 0, false);
+}
+
+(async () => {
+  if (!PAYLOAD) return gate("還沒有內容", "這一頁還沒產生資料。");
+  if (!window.crypto?.subtle) return gate("瀏覽器不支援", "請用 Safari、Chrome 等新版瀏覽器打開。");
+  const key = getKey();
+  if (!key) return gate("需要分享連結", "請用對方傳給你的完整連結打開這一頁。");
+  try { KEY_TEXT = key; render(await decrypt(key)); }
+  catch (e) { gate("連結不完整或已更換", "請跟對方要最新的分享連結。"); }
+})();
+</script>
+</body>
+</html>

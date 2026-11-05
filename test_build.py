@@ -138,8 +138,10 @@ def test_validate_trip_catches_errors():
 
 
 def test_templates_register_offline_worker():
-    for name in ("hub", "trip"):
-        assert "serviceWorker" in (build.TEMPLATES / f"{name}.html").read_text(encoding="utf-8")
+    # 11-05（P63 第 2 階段）：註冊程式搬進共用層 core.js，模板只呼叫 registerSW(路徑)，所以檢查展開共用層之後的模板
+    for name, path in (("hub", "./sw.js"), ("trip", "../sw.js")):
+        assert f'registerSW("{path}")' in (build.TEMPLATES / f"{name}.html").read_text(encoding="utf-8")
+        assert "serviceWorker" in build.page_template(name)
 
 
 def test_trip_template_keeps_own_notes_local():
@@ -363,3 +365,175 @@ def test_price_track_file_in_subfolder_still_works(tmp_path):
     (tmp_path / "sub" / "p.json").write_text(json.dumps(PRICE), encoding="utf-8")
     data = {"price_track_file": "sub/p.json"}
     assert build.load_price_track(data, tmp_path) == [] and data["price_track"]["series"]
+
+
+# ===== 共用層與 article／resources 模板 =====
+
+NEW_TEMPLATES = ("article", "resources")
+CC = {"credit": "x", "license": "CC0", "url": "https://commons.wikimedia.org/wiki/File:A.jpg"}
+PNG1 = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000001e221bc330000000049454e44ae426082")
+
+
+def _new_site(tmp_path, article=None, resources=None):
+    (tmp_path / "p.png").write_bytes(PNG1)
+    art = {"title": "示範文章", "body": "# 標題\n\n內文 ![圖](photo:甲)", "photos": {"甲": {"file": "p.png", **CC}}}
+    res = {"title": "示範清單", "items": [{"title": "甲", "url": "https://example.com/a", "tags": ["x"]}]}
+    (tmp_path / "a.json").write_text(json.dumps(article or art, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "r.json").write_text(json.dumps(resources or res, ensure_ascii=False), encoding="utf-8")
+    site = {"title": "給某人", "items": [
+        {"slug": "art", "title": "示範文章", "template": "article", "data": "a.json"},
+        {"slug": "res", "title": "示範清單", "template": "resources", "data": "r.json"}]}
+    (tmp_path / "site.json").write_text(json.dumps(site, ensure_ascii=False), encoding="utf-8")
+    return tmp_path / "site.json"
+
+
+def test_new_templates_have_placeholder_parts_and_no_external_resources():
+    for name in NEW_TEMPLATES:
+        raw = (build.TEMPLATES / f"{name}.html").read_text(encoding="utf-8")
+        assert raw.count(build.PLACEHOLDER) == 1
+        assert "/*__PART:base.css__*/" in raw and "/*__PART:core.js__*/" in raw
+        full = build.page_template(name)
+        assert "__PART" not in full and "serviceWorker" in full
+        assert not re.search(r"<script[^>]+src=", full) and "fetch(" not in full
+        assert not re.search(r"<link[^>]+rel=.stylesheet", full) and "@import" not in full
+        urls = re.findall(r"https?://[^\s\"')]+", full)
+        assert all(u.startswith("http://www.w3.org") for u in urls), (name, urls)   # 只剩 SVG 命名空間
+        assert "innerHTML" not in raw  # 內容一律 createElement／textContent；ICONS 的 SVG 在共用層 core.js
+
+
+def test_shared_parts_missing_raises():
+    with pytest.raises(ValueError, match="共用片段不存在"):
+        build.inject_parts("/*__PART:nope.css__*/")
+    one = build.inject_parts("/*__PART:base.css__*/")
+    assert build.inject_parts("a/*__PART:base.css__*/b/*__PART:base.css__*/") == "a" + one + "b" + one   # 同一標記出現兩次照換
+
+
+def test_new_templates_build_and_payload_decrypts(tmp_path):
+    key = build.build_site(_new_site(tmp_path), tmp_path / "k.txt", tmp_path / "out", now=dt.datetime(2026, 11, 5, 9, 0))
+    for slug, title in (("art", "示範文章"), ("res", "示範清單")):
+        html = (tmp_path / "out" / slug / "index.html").read_text(encoding="utf-8")
+        assert title not in html and "__PART" not in html
+        page = json.loads(build.decrypt(payload_of(html), key))
+        assert page["title"] == title and page["updated"] == "2026-11-05 09:00"
+    art = json.loads(build.decrypt(payload_of((tmp_path / "out" / "art" / "index.html").read_text(encoding="utf-8")), key))
+    assert art["photos"]["甲"]["ref"] == 0 and "file" not in art["photos"]["甲"] and art["_photos"][0].startswith("data:image/png;base64,")
+    hub = json.loads(build.decrypt(payload_of((tmp_path / "out" / "index.html").read_text(encoding="utf-8")), key))
+    assert {i["slug"]: i["template"] for i in hub["items"]} == {"art": "article", "res": "resources"}
+    assert hub["items"][0]["photo"]["ref"] is not None   # 文章沒有 cover：用 photos 第一張當首頁封面
+    assert '"./art/"' in (tmp_path / "out" / "sw.js").read_text(encoding="utf-8")
+
+
+def test_article_validation():
+    ok = {"title": "t", "body": "x"}
+    assert build.validate_article(ok) == []
+    assert build.validate_article({"title": "t", "sections": [{"title": "a", "body": "b"}]}) == []
+    assert any("標題" in e for e in build.validate_article({"body": "x"}))
+    assert any("至少" in e for e in build.validate_article({"title": "t"}))
+    assert any("TODO" in e for e in build.validate_article({"title": "t", "body": "TODO 補"}))
+    assert any("手機" in e for e in build.validate_article({"title": "t", "body": "0912-345-678"}))
+    assert any("身分證" in e for e in build.validate_article({"title": "t", "body": "A123456789"}))
+    assert any("https" in e for e in build.validate_article({**ok, "sources": [{"text": "x", "url": "http://a.com"}]}))
+    assert any("第 1 段" in e for e in build.validate_article({"title": "t", "sections": [{"body": "b"}]}))
+
+
+def test_resources_validation():
+    ok = {"title": "t", "items": [{"title": "a", "url": "https://example.com"}]}
+    assert build.validate_resources(ok) == []
+    for bad_url in ("http://a.com", "javascript:alert(1)", "//a.com", "ftp://a", "", "https://", "https://a b"):
+        assert any("https" in e for e in build.validate_resources({"title": "t", "items": [{"title": "a", "url": bad_url}]})), bad_url
+    assert any("title" in e for e in build.validate_resources({"title": "t", "items": [{"url": "https://a.com"}]}))
+    assert any("標題" in e for e in build.validate_resources({"items": ok["items"]}))
+    assert any("TODO" in e for e in build.validate_resources({"title": "t", "items": [{"title": "a", "url": "https://a.com", "note": "TODO"}]}))
+    assert any("手機" in e for e in build.validate_resources({"title": "t", "items": [{"title": "a", "url": "https://a.com", "note": "0912345678"}]}))
+    assert any("tags" in e for e in build.validate_resources({"title": "t", "items": [{"title": "a", "url": "https://a.com", "tags": "x"}]}))
+
+
+@pytest.mark.parametrize("which,data,msg", [
+    ("article", {"body": "x"}, "標題"),
+    ("article", {"title": "t", "body": "TODO"}, "TODO"),
+    ("resources", {"title": "t", "items": [{"title": "a", "url": "http://a.com"}]}, "https"),
+    ("resources", {"title": "t", "items": [{"title": "a", "url": "https://a.com", "note": "A123456789"}]}, "身分證")])
+def test_new_templates_build_rejects_bad_data(tmp_path, which, data, msg):
+    site = _new_site(tmp_path, article=data if which == "article" else None, resources=data if which == "resources" else None)
+    with pytest.raises(ValueError, match=msg):
+        build.build_site(site, tmp_path / "k.txt", tmp_path / "out")
+
+
+def test_new_template_photos_need_credit_and_local_file(tmp_path):
+    bad = {"title": "t", "body": "x", "photos": {"甲": {"file": "p.png"}, "乙": {"src": "https://evil.example/x.png", **CC}}}
+    with pytest.raises(ValueError) as e:
+        build.build_site(_new_site(tmp_path, article=bad), tmp_path / "k.txt", tmp_path / "out")
+    assert "credit" in str(e.value) and "外部網址" in str(e.value)
+
+
+def test_photos_ref_cannot_be_forged(tmp_path):
+    """資料裡寫死的 _photos、photos[名].ref／src 都不被信任（跟 trip 一樣由 build 指派）。"""
+    forged = {"title": "t", "body": "x", "_photos": ["https://evil.example/x.png"],
+              "photos": {"甲": {"file": "p.png", "ref": 0, "src": "https://evil.example/y.png", **CC}}}
+    key = build.build_site(_new_site(tmp_path, article=forged), tmp_path / "k.txt", tmp_path / "out")
+    art = json.loads(build.decrypt(payload_of((tmp_path / "out" / "art" / "index.html").read_text(encoding="utf-8")), key))
+    assert "src" not in art["photos"]["甲"] and all(p.startswith("data:image/png") for p in art["_photos"])
+
+
+def test_hub_template_icons_and_labels_for_new_templates():
+    tpl = (build.TEMPLATES / "hub.html").read_text(encoding="utf-8")
+    assert 'article: "doc"' in tpl and 'resources: "link"' in tpl
+    labels = re.search(r"const TEMPLATE_LABEL = \{[^}]*\}", tpl).group(0)
+    assert "文章" in labels and "清單" in labels and "trip" not in labels   # 行程不加小標，現站畫面不變
+
+
+def test_pick_cover_for_new_templates():
+    ph = {"file": "a.png", **CC}
+    assert build.pick_cover({"photos": {"a": ph}}) is ph
+    assert build.pick_cover({"items": [{"title": "x"}, {"title": "y", "photo": ph}]}) is ph
+    assert build.pick_cover({"cover": {"file": "c.png"}, "photos": {"a": ph}}) == {"file": "c.png"}
+    assert build.pick_cover({"title": "no photos"}) is None
+
+
+# ===== QC 修正（2026-11-05）：photos 型別、photo url https、內文警告 =====
+
+@pytest.mark.parametrize("photos", [[{"src": "https://evil.example/a.png", **CC}], "photos", 5, {"0": {"file": "p.png", **CC}},
+                                    {"a b": {"file": "p.png", **CC}}, {"x(y)": {"file": "p.png", **CC}}, {"__proto__": {"file": "p.png", **CC}},
+                                    {"甲": "not-an-object"}])
+def test_bad_photos_shapes_blocked_for_article_and_resources(tmp_path, photos):
+    art = {"title": "t", "body": "![x](photo:0)", "photos": photos}
+    res = {"title": "t", "items": [{"title": "a", "url": "https://a.com"}], "photos": photos}
+    assert any("photos" in e for e in build.validate_article(art))
+    assert any("photos" in e for e in build.validate_resources(res))
+    with pytest.raises(ValueError, match="photos"):
+        build.build_site(_new_site(tmp_path, article=art), tmp_path / "k.txt", tmp_path / "out")
+
+
+def test_strip_src_removes_src_under_any_photos_type():
+    for photos in ([{"src": "https://evil.example/a.png"}], {"a": {"src": "https://evil.example/b.png", "n": {"src": "x"}}}, [[{"src": "x"}]]):
+        d = {"photos": photos, "x": {"photos": [{"src": "y"}]}}
+        build.strip_src(d)
+        assert "evil.example" not in json.dumps(d) and '"src"' not in json.dumps(d)
+
+
+def test_array_photos_never_ship_external_src_even_without_validators(tmp_path, monkeypatch):
+    monkeypatch.setitem(build.VALIDATORS, "article", lambda d: [])   # 繞過驗證：build 這一關自己也要拿掉 src
+    art = {"title": "t", "body": "![x](photo:0)", "photos": [{"src": "https://evil.example/a.png", "credit": "x", "license": "x", "url": "https://a.com"}]}
+    key = build.build_site(_new_site(tmp_path, article=art), tmp_path / "k.txt", tmp_path / "out")
+    page = json.loads(build.decrypt(payload_of((tmp_path / "out" / "art" / "index.html").read_text(encoding="utf-8")), key))
+    assert "evil.example" not in json.dumps(page)
+
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)", "http://a.com/x", "//a.com", "data:text/html,x", "x"])
+def test_photo_url_must_be_https(tmp_path, url):
+    (tmp_path / "p.png").write_bytes(PNG1)
+    d = {"cover": {"file": "p.png", "credit": "c", "license": "l", "url": url}}
+    assert any("https" in e for e in build.inline_photos(d, tmp_path))
+    ok = {"cover": {"file": "p.png", "credit": "c", "license": "l", "url": "https://commons.wikimedia.org/wiki/File:A.jpg"}}
+    assert build.inline_photos(ok, tmp_path) == []
+
+
+def test_article_warnings_listed_and_build_prints_them(tmp_path, capsys):
+    art = {"title": "t", "body": "![a](photo:不存在) ![b](https://evil.example/x.png) [c](javascript:alert(1)) [d](https://ok.com) [e](tel:+886212345678) ![ok](photo:甲)",
+           "sections": [{"title": "s", "body": "[f](http://plain.com)"}], "photos": {"甲": {"file": "p.png", **CC}}}
+    w = build.article_warnings(art)
+    assert len(w) == 4 and any("不存在" in x for x in w) and any("evil.example" in x for x in w) and any("javascript" in x for x in w) and any("http://plain.com" in x for x in w)
+    build.build_site(_new_site(tmp_path, article=art), tmp_path / "k.txt", tmp_path / "out")   # 只警告、不擋
+    out = capsys.readouterr().out
+    assert out.count("警告") == 4 and "art：" in out
+    assert build.article_warnings({"title": "t", "body": "![ok](photo:甲) [d](https://ok.com)", "photos": {"甲": {}}}) == []

@@ -14,6 +14,24 @@
       "tag": "旅行",
       "template": "trip",
       "data": "trip.json"
+    },
+    {
+      "slug": "demo-article",
+      "title": "示範文章",
+      "date": "1/15",
+      "summary": "文章模板的示範：標題、清單、小紙條、插圖。",
+      "tag": "示範",
+      "template": "article",
+      "data": "article.json"
+    },
+    {
+      "slug": "demo-resources",
+      "title": "示範清單",
+      "date": "1/15",
+      "summary": "資源清單模板的示範：標籤篩選、分組。",
+      "tag": "示範",
+      "template": "resources",
+      "data": "resources.json"
     }
   ],
   "changelog": [

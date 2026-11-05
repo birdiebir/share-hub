@@ -36,10 +36,10 @@ python build.py --site private/site.json --key private/share_key.txt --out priva
   - 首頁另外讀：`you`（稱呼對方，預設「你」）、`cover`（首頁封面照，photo 物件，相對 site.json；沒有就用漸層＋海浪）、`categories`（`[{name, icon}]`，分類順序和沒照片時的圖示）、`items[].category`（沒有就用 `tag`）、`items[].cover`（卡片照片；沒有就從那一頁挑，挑法同行程頁封面）。
   - 首頁是 App 式三個分頁：**分享**（封面、統計卡、分類段落與項目卡片；分類有兩類以上才出現上方分段）、**更新**（更新紀錄）、**說明**（下載到手機、怎麼用）。
   - 「新」：build 幫每份分享算版本號（內容雜湊，不含 `updated`），首頁跟對方手機裡記的版本比，不同就標「新」，點進去就消掉；第一次打開全部當看過。更新紀錄有新的一筆時，「更新」分頁亮紅點。
-- `templates/<template>.html`：目前有 `hub`（首頁）、`trip`（行程）。新類型的內容就加一個模板。
+- `templates/<template>.html`：目前有 `hub`（首頁）、`trip`（行程）、`article`（文章）、`resources`（資源清單）。新類型的內容就加一個模板；欄位與做法見下面「模板清單」。
 - 金鑰檔不存在會自動產生；**同一個站一直用同一把**，換了舊連結全部失效。
 - 輸出資料夾推到 GitHub Pages（或任何靜態主機）。commit 訊息寫中性的 `update`。
-- 測試：`python -m pytest -q test_build.py`
+- 測試：`python -m pytest -q`（`test_build.py` 是單元測試；`test_templates_ui.py` 用 Playwright＋Microsoft Edge 做瀏覽器測試，沒裝就自動跳過）
 
 ## 發布與更新
 
@@ -52,6 +52,33 @@ python build.py --site private/site.json --key private/share_key.txt --out priva
 - 拿掉某一頁：從 site.json 刪掉，然後照上面更新。build 會自動刪掉輸出資料夾裡不在 items 的頁（像 slug 的資料夾；`icons`、`.git` 不動）。
 - 照片、cover 的 `src`（外部網址）build 一律拿掉，頁面不會從第三方載圖。
 - 第一次建站（換新站才需要）：`git init -b main` → `gh repo create <帳號>/<沒有意義的名稱> --public --source=. --push`（不填描述）→ `gh api -X POST repos/<帳號>/<repo>/pages -f "source[branch]=main" -f "source[path]=/"`。
+
+## 模板清單
+
+| 模板 | 用途 | 分頁 |
+|---|---|---|
+| `hub` | 首頁：分類、項目卡片、更新紀錄、說明 | 分享／更新／說明 |
+| `trip` | 行程 | 行程／預訂／行李／更多 |
+| `article` | 文章（Markdown 內文） | 內容（有 `sections` 時上方多一排分段）／更多 |
+| `resources` | 資源清單（連結＋標籤篩選） | 清單／更多 |
+
+首頁卡片：`article` 圖示 `doc`、小標「文章」；`resources` 圖示 `link`、小標「清單」；行程不加小標。沒有 `cover` 時，文章用 `photos` 第一張、清單用第一個有 `photo` 的項目，都沒有就用分類圖示。
+
+### article 欄位
+
+`title`（必填）、`subtitle`、`date`（顯示用的文字）、`cover`（photo）、`body`（Markdown 字串）、`sections[]`（`{title, body}`）、`photos`（`{名稱: photo}`）、`sources[]`（`{text, url}`，url 只收 https）、`changelog[]`（`{date, text}`）。`body` 和 `sections` 至少要有一個；兩個都有時，`body` 在分段裡叫「前言」。每張 photo 要有 `file`（本機檔，相對資料檔）、`credit`、`license`、`url`，build 嵌進加密資料。
+
+Markdown 子集（頁面 JS 自己解析，用 DOM 組，不用 innerHTML）：`#`／`##`／`###`（變成 h2／h3／h4，頁面的 h1 是標題列）、段落（空行分段，同一段的換行保留）、`-`／`*`／`1.` 清單（一層）、`> ` 引言（小紙條）、`**粗**`、`*斜*`、`` `code` ``、`[文字](https://…)`／`[文字](tel:…)`（其他協定只留文字；https 連結新分頁開、`noopener noreferrer`）、`![說明](photo:名稱)`（只認 `photos` 裡的名稱；外部網址、不存在的名稱都不顯示）、`---` 分隔線。原始 HTML 一律當文字顯示。
+
+### resources 欄位
+
+`title`（必填）、`subtitle`、`intro`、`cover`、`groups[]`（`{name, icon}`，卡片順序和圖示；圖示名稱用 core.js／模板有的，找不到用 link）、`items[]`（`{title, url, note, tags[], group, photo, date}`；`title`、`url` 必填，`url` 只收 https，build 擋一次、前端再擋一次）、`sources[]`、`changelog[]`。清單分頁上方是標籤篩選列（「全部」＋各標籤，單選，再點一次取消），下面依 `group` 分卡片（沒有 group 歸「其他」放最後）。
+
+### 共用層（partials）與 PART 標記
+
+- `templates/partials/base.css`（token、reset、App 殼的標題列／分段／分頁列、卡片、安裝卡、離線條、空狀態、gate、skeleton、mobile-native）和 `core.js`（`el`、base64、readJSON／writeJSON、`registerSW(路徑)`、離線條、ICONS 基本集合與 `ic()`、安裝卡、`gate`、`photoSrc`／`ext`／`credit`、`loadFonts`、`getKey`、`decrypt`）。
+- 模板在 `<style>` 最前面寫 `/*__PART:base.css__*/`、在 `<script>` 裡 `const PAYLOAD` 後面寫 `/*__PART:core.js__*/`；`build.page_template()` 在算字型子集之前換成片段內容（找不到片段檔就報錯；同一標記出現幾次換幾次；片段裡的註解輸出時去掉）。模板自己的規則寫在後面，覆蓋共用的值。
+- 模板在標記後自己宣告 `let DATA`、`let KEY_TEXT`，用 `Object.assign(ICONS, {...})` 補自己的圖示，`IC_FALLBACK` 可改找不到圖示時的預設。
 
 ## trip 模板欄位
 

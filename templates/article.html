@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>分享</title>
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbf6ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e141d" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  /*__PART:base.css__*/
+  /* 文章模板：照 docs\設計規範.md。底部兩個分頁「內容」「更多」；有 sections 時內容分頁上方多一排分段。
+     內文是自己的 Markdown 子集（頁面 JS 裡用 DOM 組，不拼 HTML 字串）：標題、段落、清單、引言（小紙條）、粗斜體、行內程式碼、https／tel 連結、photos 裡的圖、分隔線。 */
+  :root { --paper-note: #fff1bf; --paper-ink: #4b3c17; }
+  @media (prefers-color-scheme: dark) { :root { --paper-note: #39321d; --paper-ink: #f2e6c2; } }
+  .pane > :first-child { margin-top: 16px; }
+  .pane { padding-bottom: 8px; }
+  .gate b { font-size: 18px; }
+  .ab-title { display: block; line-height: 36px; }   /* 文章標題可能很長：用 block 才會用 … 截斷 */
+  .tab:active, .seg button:active { transition-duration: .1s; }
+
+  /* 封面照與標題下的說明 */
+  .art-cover { position: relative; margin: 0; border-radius: 26px; overflow: hidden; box-shadow: 0 16px 34px rgb(0 0 0 / .14); background: var(--surface-2); }
+  .art-cover img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+  .art-cover .cr { position: absolute; right: 10px; bottom: 6px; font-size: 10px; color: rgb(255 255 255 / .88); text-shadow: 0 1px 3px rgb(0 0 0 / .7); }
+  .art-cover .cr a { color: inherit; }
+  .art-meta { margin: 14px 4px 0; font-size: 15px; line-height: 1.6; color: var(--muted); }
+  .art-meta b { display: block; margin-bottom: 2px; font-family: var(--f-hand); font-weight: 500; font-synthesis: none; font-size: 19px; line-height: 1.4; color: var(--text); }
+  .art-meta time { font-variant-numeric: tabular-nums; }
+
+  /* 內文（Markdown 子集） */
+  .md { font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
+  .md > :first-child { margin-top: 0; }
+  .art-cover + .md, .art-meta + .md { margin-top: 18px; }
+  .md p { margin: 14px 0 0; }
+  .md h2, .md h3, .md h4 { font-family: var(--f-hand); font-weight: 500; font-synthesis: none; letter-spacing: .01em; word-spacing: -.12em; text-wrap: balance; }
+  .md h2 { margin: 28px 0 10px; font-size: 23px; line-height: 1.3; }
+  .md h2::after { content: ""; display: block; width: 46px; height: 8px; margin-top: 6px; background: var(--coral);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 8'%3E%3Cpath d='M1 5c4-4 7-4 11 0s7 4 11 0 7-4 11 0 7 4 11 0' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") left center/contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 8'%3E%3Cpath d='M1 5c4-4 7-4 11 0s7 4 11 0 7-4 11 0 7 4 11 0' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") left center/contain no-repeat; }
+  .md h3 { margin: 24px 0 8px; font-size: 21px; line-height: 1.35; }
+  .md h4 { margin: 20px 0 6px; font-size: 18px; line-height: 1.4; }
+  .md ul, .md ol { margin: 12px 0 0; padding-left: 1.5em; }
+  .md li { margin: 4px 0; padding-left: 2px; }
+  .md li::marker { color: var(--coral-ink); }
+  .md a { text-underline-offset: 3px; }
+  .md strong { font-weight: 700; }
+  .md code { padding: 1px 6px; border-radius: 8px; background: var(--surface-2); font: .92em ui-monospace, "SF Mono", Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+  .md hr { height: 0; margin: 26px 0; border: 0; border-top: 2px dashed color-mix(in srgb, var(--line) 90%, var(--muted)); }
+  .md blockquote.note { position: relative; margin: 26px 10px 8px; padding: 20px 18px 16px; border-radius: 6px 6px 20px 6px; transform: rotate(-1deg);
+    background: var(--paper-note); color: var(--paper-ink); font-family: var(--f-hand); font-weight: 500; font-synthesis: none; font-size: 18px; line-height: 1.65;
+    box-shadow: 0 10px 22px rgb(110 80 10 / .14); }
+  .md blockquote.note::before { content: ""; position: absolute; top: -10px; left: 50%; width: 88px; height: 22px; transform: translateX(-50%) rotate(2deg);
+    background: color-mix(in srgb, var(--coral) 30%, rgb(255 255 255 / .6)); border-radius: 3px; opacity: .8; }
+  .md blockquote.note p:first-child { margin-top: 0; }
+  .md figure.md-fig { margin: 18px 0 0; }
+  .md figure.md-fig img { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: var(--shadow); background: var(--surface-2); }
+  .md figure.md-fig figcaption { margin-top: 6px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .md figure.md-fig .cap { display: block; }
+  .md figure.md-fig .cr { display: block; font-size: 11px; }
+  .md figure.md-fig .cr a { color: inherit; }
+  .md img.md-inl { max-width: 100%; height: auto; vertical-align: middle; border-radius: 8px; }
+
+  /* 分段標題、更多分頁 */
+  .sec-h { margin: 0 4px 12px; font-size: 23px; line-height: 1.3; }
+  .more-sec { margin-top: 24px; }
+  .more-sec > h2 { margin: 0 4px 12px; font-size: 21px; line-height: 1.3; }
+  ul.src { margin: 0; padding-left: 18px; font-size: 14px; }
+  ul.src li { margin: 4px 0; }
+  ul.src a { overflow-wrap: anywhere; }
+  ol.log { list-style: none; margin: 0; padding: 4px 16px; }
+  ol.log li { display: grid; grid-template-columns: 56px 1fr; gap: 12px; padding: 13px 0; }
+  ol.log li + li { border-top: 1px solid var(--line); }
+  ol.log time { font-family: var(--f-num); font-size: 17px; line-height: 1.5; color: var(--coral-ink); font-variant-numeric: tabular-nums; }
+  ol.log span { font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+  ul.menu { list-style: none; margin: 0; padding: 4px 0; border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); }
+  ul.menu a { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 6px 14px; color: var(--text); font-size: 16px; font-weight: 600; text-decoration: none; }
+  ul.menu a:active { background: var(--surface-2); }
+  ul.menu span:not([class]) { flex: 1; }
+  .menu-ic { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+  .menu-ic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .menu-go { color: var(--muted); }
+  .menu-go svg { width: 20px; height: 20px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .install + .more-sec, .install + ul.menu { margin-top: 16px; }
+  .updated { margin: 22px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
+  footer { margin-top: 28px; font-size: 14px; color: var(--muted); text-align: center; }
+
+  /* 手機手感：連結列也不選字；hover 只給滑鼠 */
+  ul.menu a { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .tab:not(.active):hover, .seg button:not(.on):hover { color: var(--text); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    section.view:not([hidden]) .pane:not([hidden]) { animation: fade .22s ease-out both; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (prefers-reduced-transparency: reduce) {
+    .appbar { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    nav.tabbar { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app" class="wrap">
+  <div style="padding-top:calc(env(safe-area-inset-top) + 16px)">
+    <div class="skeleton" style="width:40%;height:30px"></div>
+    <div class="skeleton" style="height:200px;border-radius:26px;margin-top:22px"></div>
+    <div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:40%"></div><div class="skeleton"></div>
+  </div>
+</div>
+<script>
+const PAYLOAD = /*__PAYLOAD__*/null;
+/*__PART:core.js__*/
+let DATA = {}, KEY_TEXT = "";
+registerSW("../sw.js");
+
+// ===== Markdown 子集 → DOM（全部用 createElement／textContent，資料裡的 HTML 一律當文字，不會變成元素）=====
+const okUrl = u => (/^https:\/\/[^\s<>"'`]+$/.test(u) && u.length > 8) || /^tel:\+?[0-9][0-9\-#*]{2,30}$/.test(u);
+const hasOwn = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+// 只認 photos 裡的名稱；沒有、不是 photo: 開頭（外部網址等）、build 沒嵌到圖，都回傳 null（不顯示）
+function mdPhoto(ref) {
+  if (typeof ref !== "string" || !ref.startsWith("photo:")) return null;
+  const map = DATA.photos;
+  if (!map || typeof map !== "object" || Array.isArray(map)) return null;   // photos 只認 {名稱: photo} 的物件
+  const name = ref.slice(6), ph = hasOwn(map, name) ? map[name] : null;
+  if (!ph || typeof ph !== "object" || Array.isArray(ph)) return null;
+  const src = photoSrc(ph);
+  return src ? { ph, src } : null;
+}
+function inline(text, parent, depth = 0) {
+  let buf = "", i = 0, cl = null, cp = 0;
+  const flush = () => { if (buf) { parent.append(document.createTextNode(buf)); buf = ""; } };
+  const closers = () => {
+    if (!cl) { cl = []; for (let j = text.indexOf("**"); j >= 0; j = text.indexOf("**", j + 1)) if (j > 0 && !/\s/.test(text[j - 1])) cl.push(j); }
+    return cl;
+  };
+  while (i < text.length) {
+    const c = text[i], rest = text.slice(i);
+    let m;
+    if (c === "\\" && i + 1 < text.length && "\\`*[]()!#>-_".includes(text[i + 1])) { buf += text[i + 1]; i += 2; continue; }
+    if (c === "`" && (m = /^`([^`]+)`/.exec(rest))) { flush(); parent.append(el("code", {}, m[1])); i += m[0].length; continue; }
+    if (c === "!" && (m = /^!\[([^\]]*)\]\(([^)\s]*)\)/.exec(rest))) {
+      flush();
+      const p = mdPhoto(m[2]);
+      if (p) parent.append(el("img", { class: "md-inl", src: p.src, alt: m[1], decoding: "async" }));
+      i += m[0].length; continue;
+    }
+    if (c === "[" && (m = /^\[([^\]]+)\]\(([^)\s]+)\)/.exec(rest))) {
+      flush();
+      if (okUrl(m[2]) && depth < 3) {
+        const https = m[2].startsWith("https:");
+        const a = el("a", https ? { href: m[2], target: "_blank", rel: "noopener noreferrer" } : { href: m[2] });
+        inline(m[1], a, depth + 1);
+        parent.append(a);
+      } else inline(m[1], parent, depth + 1);   // 不是 https／tel：只留文字，不變成連結
+      i += m[0].length; continue;
+    }
+    // ** 粗體：收尾的 ** 前面不能是空白；合法收尾位置掃一次，開頭往後找第一個（不用有回溯的正則，長文字也是線性）
+    if (c === "*" && text[i + 1] === "*" && depth < 3 && i + 2 < text.length && !/\s/.test(text[i + 2])) {
+      const a = closers();
+      while (cp < a.length && a[cp] < i + 3) cp++;
+      if (cp < a.length) { flush(); const s = el("strong"); inline(text.slice(i + 2, a[cp]), s, depth + 1); parent.append(s); i = a[cp] + 2; continue; }
+    }
+    // * 斜體：中間不能有 *，所以收尾一定是下一個 *（indexOf 一次，沒有回溯）
+    if (c === "*" && text[i + 1] !== "*" && depth < 3 && i + 1 < text.length && !/\s/.test(text[i + 1])) {
+      const q = text.indexOf("*", i + 1);
+      if (q > i + 1 && !/\s/.test(text[q - 1]) && text[q + 1] !== "*") { flush(); const s = el("em"); inline(text.slice(i + 1, q), s, depth + 1); parent.append(s); i = q + 1; continue; }
+    }
+    buf += c; i++;
+  }
+  flush();
+  return parent;
+}
+const MD = {
+  blank: l => /^\s*$/.test(l),
+  head: l => /^(#{1,3})\s+(\S.*?)\s*$/.exec(l),
+  hr: l => /^\s*([-*_])\1{2,}\s*$/.test(l),
+  img: l => /^\s*!\[([^\]]*)\]\(([^)\s]*)\)\s*$/.exec(l),
+  quote: l => /^\s*>/.test(l),
+  ul: l => /^\s*[-*+]\s+(\S.*)$/.exec(l),
+  ol: l => /^\s*\d+[.)]\s+(\S.*)$/.exec(l),
+};
+const mdSpecial = l => MD.head(l) || MD.hr(l) || MD.img(l) || MD.quote(l) || MD.ul(l) || MD.ol(l);
+function paragraph(lines, tag = "p") {
+  const p = el(tag);
+  lines.forEach((l, k) => { if (k) p.append(el("br")); inline(l.trim(), p); });
+  return p;
+}
+function markdown(src) {
+  const lines = String(src == null ? "" : src).replace(/\r\n?/g, "\n").split("\n"), root = el("div", { class: "md" });
+  let i = 0, m;
+  while (i < lines.length) {
+    const l = lines[i];
+    if (MD.blank(l)) { i++; continue; }
+    if ((m = MD.head(l))) { root.append(inline(m[2], el("h" + (m[1].length + 1)))); i++; continue; }
+    if (MD.hr(l)) { root.append(el("hr")); i++; continue; }
+    if ((m = MD.img(l))) {
+      const p = mdPhoto(m[2]);
+      if (p) root.append(el("figure", { class: "md-fig" }, el("img", { src: p.src, alt: m[1], loading: "lazy", decoding: "async" }),
+        el("figcaption", {}, m[1] ? el("span", { class: "cap" }, m[1]) : null, credit(p.ph, "cr"))));
+      i++; continue;
+    }
+    if (MD.quote(l)) {
+      const inner = [];
+      while (i < lines.length && MD.quote(lines[i])) inner.push(lines[i++].replace(/^\s*>\s?/, ""));
+      const bq = el("blockquote", { class: "note" });
+      let buf = [];
+      const end = () => { if (buf.length) bq.append(paragraph(buf)); buf = []; };
+      inner.forEach(x => MD.blank(x) ? end() : buf.push(x));
+      end();
+      root.append(bq); continue;
+    }
+    const kind = MD.ul(l) ? "ul" : MD.ol(l) ? "ol" : null;
+    if (kind) {
+      const list = el(kind);
+      while (i < lines.length && (m = MD[kind](lines[i]))) { list.append(inline(m[1].trim(), el("li"))); i++; }
+      root.append(list); continue;
+    }
+    const buf = [];
+    while (i < lines.length && !MD.blank(lines[i]) && (buf.length === 0 || !mdSpecial(lines[i]))) buf.push(lines[i++]);
+    root.append(paragraph(buf));
+  }
+  return root;
+}
+
+// ===== 畫面 =====
+const secOf = d => (Array.isArray(d.sections) ? d.sections : []).filter(s => s && typeof s === "object");
+function contentPane(d, key) {
+  if (key === "content") {
+    const cv = d.cover, src = photoSrc(cv);
+    return el("div", {},
+      src ? el("figure", { class: "art-cover" }, el("img", { src, alt: cv.alt || "", decoding: "async" }), credit(cv, "cr")) : null,
+      d.subtitle || d.date ? el("p", { class: "art-meta" }, d.subtitle ? el("b", {}, d.subtitle) : null, d.date ? el("time", {}, d.date) : null) : null,
+      markdown(d.body));
+  }
+  const s = secOf(d)[+key.slice(3) - 1] || {};
+  return el("div", {}, el("h2", { class: "sec-h" }, s.title || ""), markdown(s.body));
+}
+function morePane(d) {
+  const src = (d.sources || []).filter(s => s && okUrl(s.url) && s.url.startsWith("https:")), log = d.changelog || [];
+  const up = (d.updated || "").replace(/^(\d{4})-(\d{2})-(\d{2})/, "$2/$3");
+  return el("div", {},
+    installCard(KEY_TEXT, true),
+    el("ul", { class: "menu" }, el("li", {}, el("a", { href: "../#k=" + KEY_TEXT }, ic("home", "menu-ic"), el("span", {}, "全部分享"), ic("chev", "menu-go")))),
+    src.length ? el("section", { class: "more-sec" }, el("h2", {}, "資料來源"), el("div", { class: "card" }, el("ul", { class: "src" }, src.map(s => el("li", {}, ext(s.url, null, s.text || s.url)))))) : null,
+    log.length ? el("section", { class: "more-sec" }, el("h2", {}, "更新紀錄"),
+      el("div", { class: "card", style: "padding:0" }, el("ol", { class: "log" }, log.map(c => el("li", {}, el("time", {}, c.date || ""), el("span", {}, c.text || "")))))) : null,
+    up ? el("p", { class: "updated" }, `最後更新 ${up}・重新整理就是最新的`) : null,
+    el("footer", {}, el("span", { class: "foot-wave", "aria-hidden": "true" }), "下載到手機後，點桌面的圖示就能打開。"));
+}
+
+let GO = () => {};
+function render(d) {
+  DATA = d;
+  loadFonts(d._fonts);
+  const title = d.title || "分享";
+  document.title = title;
+  const secs = secOf(d), hasBody = typeof d.body === "string" && d.body.trim() !== "";
+  const contentSubs = [];
+  if (hasBody || !secs.length) contentSubs.push({ key: "content", label: secs.length ? "前言" : "內容", ctx: "內容" });
+  secs.forEach((s, i) => contentSubs.push({ key: `sec${i + 1}`, label: s.title || `第 ${i + 1} 段`, ctx: s.title || `第 ${i + 1} 段` }));
+  const TABS = [
+    { key: "content", label: "內容", icon: "doc", title, subs: contentSubs, build: k => contentPane(d, k) },
+    { key: "more", label: "更多", icon: "more", title: "更多", subs: [{ key: "more", label: "更多", ctx: "更多" }], build: () => morePane(d) },
+  ];
+  const views = new Map(), last = {};
+  TABS.forEach(t => {
+    let seg = null;
+    if (t.subs.length > 1) {
+      seg = el("div", { class: "seg", role: "tablist", "aria-label": "段落" });
+      t.subs.forEach(s => { const b = el("button", { type: "button", role: "tab", "data-sub": s.key }, s.label); b.addEventListener("click", () => GO(t.key, s.key)); seg.append(b); });
+    }
+    const panes = new Map(t.subs.map(s => [s.key, el("div", { class: "pane", "data-sub": s.key, hidden: true })]));
+    const v = el("section", { class: "view", "data-view": t.key, hidden: true }, el("header", { class: "appbar" }, el("h1", { class: "ab-title" }, t.title), seg), [...panes.values()]);
+    views.set(t.key, { t, v, panes, seg, built: new Set() });
+  });
+  const tabbar = el("nav", { class: "tabbar", "aria-label": "主要分頁" }, el("div", { class: "tabs" }, TABS.map(t => {
+    const b = el("button", { type: "button", class: "tab", "data-tab": t.key }, ic(t.icon), t.label);
+    b.addEventListener("click", () => GO(t.key, last[t.key] || t.subs[0].key));
+    return b;
+  })));
+
+
+  GO = (tab, sub, push = true) => {
+    const V = views.get(tab) || views.get("content");
+    if (!V.panes.has(sub)) sub = V.t.subs[0].key;
+    views.forEach((x, k) => { x.v.hidden = k !== V.t.key; });
+    V.panes.forEach((p, k) => {
+      p.hidden = k !== sub;
+      if (k === sub && !V.built.has(k)) { p.append(V.t.build(k)); V.built.add(k); }
+    });
+    V.seg?.querySelectorAll("button").forEach(b => { const on = b.dataset.sub === sub; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
+    tabbar.querySelectorAll(".tab").forEach(b => { const on = b.dataset.tab === V.t.key; b.classList.toggle("active", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    last[V.t.key] = sub;
+    window.scrollTo(0, 0);
+    const st = { tab: V.t.key, sub };
+    if (push) history.pushState(st, ""); else history.replaceState(st, "");
+  };
+  addEventListener("popstate", e => { if (e.state && e.state.tab) GO(e.state.tab, e.state.sub, false); });
+
+  document.getElementById("app").replaceChildren(...[...views.values()].map(x => x.v), tabbar);
+  offlineBanner();
+  // 開頁停在哪：瀏覽紀錄優先；再來是網址 ?view=sec2；都沒有就是第一段
+  const st = history.state, qv = new URLSearchParams(location.search).get("view") || "";
+  const owner = k => [...views.values()].find(V => V.panes.has(k));
+  if (st && st.tab) GO(st.tab, st.sub, false);
+  else if (qv && owner(qv)) {
+    GO(owner(qv).t.key, qv, false);
+    history.replaceState(history.state, "", location.pathname + location.hash);   // 套用後清掉 ?view
+  } else GO("content", contentSubs[0].key, false);
+}
+
+(async () => {
+  if (!PAYLOAD) return gate("還沒有內容", "這一頁還沒產生資料。");
+  if (!window.crypto?.subtle) return gate("瀏覽器不支援", "請用 Safari、Chrome 等新版瀏覽器打開。");
+  const key = getKey();
+  if (!key) return gate("需要分享連結", "請用對方傳給你的完整連結打開這一頁。");
+  try { KEY_TEXT = key; render(await decrypt(key)); }
+  catch (e) { gate("連結不完整或已更換", "請跟對方要最新的分享連結。"); }
+})();
+</script>
+</body>
+</html>

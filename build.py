@@ -67,9 +67,35 @@ def now_text(now: dt.datetime | None = None) -> str:
     return (now or dt.datetime.now(TZ)).strftime("%Y-%m-%d %H:%M")
 
 
+PART_RE = re.compile(r"/\*__PART:([A-Za-z0-9_.-]+)__\*/")
+
+
+def inject_parts(tpl: str, name: str = "") -> str:
+    """模板裡的 PART 標記（斜線星號 __PART:檔名__ 星號斜線）換成 templates/partials/<檔名> 的內容（共用層 base.css、core.js）。
+
+    找不到片段檔就報錯；同一個標記出現幾次就換幾次。片段本身不再展開標記（不遞迴）。
+    """
+    def rep(m: re.Match) -> str:
+        f = TEMPLATES / "partials" / m.group(1)
+        if not f.is_file():
+            raise ValueError(f"模板 {name or '?'} 的共用片段不存在：partials/{m.group(1)}")
+        return strip_comments(f.read_text(encoding="utf-8"), f.suffix)
+    return PART_RE.sub(rep, tpl)
+
+
+def strip_comments(text: str, suffix: str) -> str:
+    """共用片段的說明註解只留在原始碼：輸出的頁面不帶（註解裡的中文會讓字型子集多出不必要的字、頁面變大）。
+    css 去掉區塊註解；js 只去掉「整行都是註解」的行（行尾註解不動，避免誤砍字串裡的 //）。"""
+    if suffix == ".css":
+        return re.sub(r"/\*.*?\*/\s*", "", text, flags=re.S)
+    if suffix == ".js":
+        return "\n".join(ln for ln in text.split("\n") if not ln.lstrip().startswith("//"))
+    return text
+
+
 def page_template(name: str) -> str:
-    """讀模板（templates/<name>.html）。"""
-    return (TEMPLATES / f"{name}.html").read_text(encoding="utf-8")
+    """讀模板（templates/<name>.html），並換入共用層（base.css、core.js，見 inject_parts）。"""
+    return inject_parts((TEMPLATES / f"{name}.html").read_text(encoding="utf-8"), name)
 
 
 def render(data: dict, key: bytes, template: str) -> str:
@@ -201,7 +227,119 @@ def load_price_track(data: dict, data_dir: Path, warn=print) -> list[str]:
     return errs
 
 
-VALIDATORS = {"trip": validate_trip}
+def _pii_errors(data: dict) -> list[str]:
+    text = json.dumps(data, ensure_ascii=False)
+    return [f"疑似放了{what}：{rx.search(text).group(0)}" for rx, what in PII if rx.search(text)]
+
+
+def _https(u) -> bool:
+    return isinstance(u, str) and u.startswith("https://") and len(u) > len("https://") and not re.search(r"[\s\x00-\x1f<>\"'`]", u)
+
+
+def _source_errors(data: dict) -> list[str]:
+    errs = []
+    for i, s in enumerate(data.get("sources") or [], 1):
+        if not isinstance(s, dict) or not _https(s.get("url")):
+            errs.append(f"資料來源第 {i} 筆的網址只能是 https://")
+    return errs
+
+
+def _photos_errors(data: dict) -> list[str]:
+    """photos 要是 {名稱: photo 物件}：名稱是一般文字（不能純數字、含空白或括號、__ 開頭），值是物件。清單、字串等型別一律擋下。"""
+    ph = data.get("photos")
+    if ph is None:
+        return []
+    if not isinstance(ph, dict):
+        return ["photos 要是 {名稱: photo} 的對照表，不能是清單或其他型別"]
+    errs = []
+    for k, v in ph.items():
+        if not isinstance(k, str) or not k.strip() or len(k) > 40 or re.fullmatch(r"\d+", k) or re.search(r"[\s()\[\]]", k) or k.startswith("__"):
+            errs.append(f"photos 的名稱「{k}」不合格（要是一般文字，不能純數字、含空白或括號、以 __ 開頭）")
+        if not isinstance(v, dict):
+            errs.append(f"photos 的「{k}」要是 photo 物件")
+    return errs
+
+
+MD_IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)\s]*)\)")
+MD_LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)\s]+)\)")
+
+
+def article_warnings(data: dict) -> list[str]:
+    """文章內文裡頁面會過濾掉的東西（不擋 build，只提醒作者）：找不到的 photo:名稱、非 photo 的圖、不是 https／tel 的連結。"""
+    photos = data.get("photos") if isinstance(data.get("photos"), dict) else {}
+    texts = [("body", data.get("body"))] + [(f"第 {i} 段", s.get("body")) for i, s in enumerate(data.get("sections") or [], 1) if isinstance(s, dict)]
+    out = []
+    for where, t in texts:
+        if not isinstance(t, str):
+            continue
+        for ref in MD_IMG_RE.findall(t):
+            if not ref.startswith("photo:"):
+                out.append(f"警告：{where} 的圖片「{ref[:60]}」不是 photo:名稱，頁面不會顯示")
+            elif ref[6:] not in photos:
+                out.append(f"警告：{where} 的 {ref[:60]} 在 photos 裡找不到，圖不會顯示")
+        for url in MD_LINK_RE.findall(t):
+            if not (re.fullmatch(r"https://[^\s<>\"'`]+", url) or re.fullmatch(r"tel:\+?[0-9][0-9\-#*]{2,30}", url)):
+                out.append(f"警告：{where} 的連結「{url[:60]}」不是 https／tel，頁面只會留文字")
+    return out
+
+
+def validate_article(data: dict) -> list[str]:
+    """文章頁（templates/article.html）的機械檢查：標題必填、body／sections 至少一個、沒有 TODO、沒有個資樣式、資料來源是 https。
+
+    Markdown 內文的連結、圖片在頁面執行時才過濾（只認 https／tel 與 photos 的名稱，其他當文字），build 不擋，免得一個壞連結讓整頁發不出去。"""
+    errs = []
+    if not isinstance(data.get("title"), str) or not data["title"].strip():
+        errs.append("文章要有標題（title）")
+    body, secs = data.get("body"), data.get("sections")
+    has_body = isinstance(body, str) and body.strip() != ""
+    sec_list = secs if isinstance(secs, list) else []
+    if body is not None and not isinstance(body, str):
+        errs.append("body 要是 Markdown 字串")
+    if secs is not None and not isinstance(secs, list):
+        errs.append("sections 要是清單")
+    for i, s in enumerate(sec_list, 1):
+        if not isinstance(s, dict) or not isinstance(s.get("title"), str) or not s["title"].strip():
+            errs.append(f"第 {i} 段要有標題（title）")
+        elif not isinstance(s.get("body"), str):
+            errs.append(f"第 {i} 段「{s['title']}」要有 body（Markdown 字串）")
+    if not has_body and not any(isinstance(s, dict) and isinstance(s.get("body"), str) and s["body"].strip() for s in sec_list):
+        errs.append("body 和 sections 至少要有一個有內容")
+    errs += _source_errors(data) + _photos_errors(data)
+    if "TODO" in json.dumps(data, ensure_ascii=False):
+        errs.append("還有沒填完的 TODO")
+    return errs + _pii_errors(data)
+
+
+def validate_resources(data: dict) -> list[str]:
+    """資源清單頁（templates/resources.html）的機械檢查：每項 title／url 必填、url 只收 https://、沒有 TODO、沒有個資樣式。"""
+    errs = []
+    if not isinstance(data.get("title"), str) or not data["title"].strip():
+        errs.append("清單要有標題（title）")
+    items = data.get("items")
+    if not isinstance(items, list) or not items:
+        errs.append("items 至少要有一項")
+        items = []
+    for i, it in enumerate(items, 1):
+        if not isinstance(it, dict):
+            errs.append(f"第 {i} 項要是物件")
+            continue
+        name = it.get("title") if isinstance(it.get("title"), str) and it["title"].strip() else None
+        if not name:
+            errs.append(f"第 {i} 項少了 title")
+        if not _https(it.get("url")):
+            errs.append(f"第 {i} 項「{name or ''}」的 url 只能是 https://")
+        if "tags" in it and (not isinstance(it["tags"], list) or not all(isinstance(t, str) and t.strip() for t in it["tags"])):
+            errs.append(f"第 {i} 項「{name or ''}」的 tags 要是文字清單")
+    groups = data.get("groups")
+    if groups is not None and (not isinstance(groups, list) or not all(isinstance(g, dict) and isinstance(g.get("name"), str) and g["name"].strip() for g in groups)):
+        errs.append("groups 每一項都要有 name")
+    errs += _source_errors(data) + _photos_errors(data)
+    if "TODO" in json.dumps(data, ensure_ascii=False):
+        errs.append("還有沒填完的 TODO")
+    return errs + _pii_errors(data)
+
+
+VALIDATORS = {"trip": validate_trip, "article": validate_article, "resources": validate_resources}
 
 SW_TEMPLATE = """// share-hub 離線快取：有網路時抓最新版，沒網路時用上次的版本。只快取同網域的頁面。
 const CACHE = "share-hub-__STAMP__";
@@ -227,6 +365,16 @@ self.addEventListener("fetch", e => {
 PHOTO_MIME = {".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 
 
+def _strip_src_deep(o) -> None:
+    if isinstance(o, dict):
+        o.pop("src", None)
+        for v in o.values():
+            _strip_src_deep(v)
+    elif isinstance(o, list):
+        for v in o:
+            _strip_src_deep(v)
+
+
 def strip_src(o) -> None:
     """photo／cover 物件的 src 一律拿掉、任何地方的 ref 一律拿掉。
 
@@ -238,6 +386,8 @@ def strip_src(o) -> None:
         for k, v in o.items():
             if k in ("photo", "cover") and isinstance(v, dict):
                 v.pop("src", None)
+            if k == "photos":  # 文章頁：photos 是 {名稱: photo} 的對照表；不管寫成什麼型別（清單、巢狀），底下所有 src 都拿掉
+                _strip_src_deep(v)
             strip_src(v)
     elif isinstance(o, list):
         for v in o:
@@ -265,8 +415,12 @@ def inline_photos(data: dict, base: Path) -> list[str]:
                 found.append((o["photo"], f"{where} {o.get('title') or o.get('name') or o.get('dir') or ''}".strip()))
             if isinstance(o.get("cover"), dict):  # 行程頁整趟封面（模板 tripCover 會讀 cover.ref）
                 found.append((o["cover"], f"{where} 封面".strip()))
+            if isinstance(o.get("photos"), dict):  # 文章頁內文用 ![說明](photo:名稱) 引用的圖
+                for name, ph in o["photos"].items():
+                    if isinstance(ph, dict):
+                        found.append((ph, f"{where} 圖片 {name}".strip()))
             for k, v in o.items():
-                if k not in ("photo", "cover"):
+                if k not in ("photo", "cover", "photos"):
                     walk(v, o.get("label", where) if k == "items" else where)
         elif isinstance(o, list):
             for v in o:
@@ -281,6 +435,8 @@ def inline_photos(data: dict, base: Path) -> list[str]:
         for k in ("credit", "license", "url"):
             if not ph.get(k):
                 errs.append(f"{where} 的照片少了 {k}（要署名、授權、出處）")
+        if ph.get("url") and not _https(ph["url"]):   # 署名連結會做成 <a>，只收 https
+            errs.append(f"{where} 的照片 url 只能是 https://")
         if "file" not in ph:
             errs.append(f"{where} 的照片要用本機檔（photo.file），不能連到外部網址")
             continue
@@ -398,9 +554,16 @@ def content_version(item: dict, data: dict) -> str:
 
 
 def pick_cover(data: dict) -> dict | None:
-    """一頁的封面照：資料的 cover 優先；行程頁照 trip 模板的挑法（標 cover → 標 star → 第一張）。"""
+    """一頁的封面照：資料的 cover 優先；文章用 photos 第一張、資源清單用第一個有照片的項目；行程頁照 trip 模板的挑法（標 cover → 標 star → 第一張）。"""
     if isinstance(data.get("cover"), dict):
         return data["cover"]
+    if isinstance(data.get("photos"), dict):  # 文章：沒有 cover 就用 photos 的第一張
+        for ph in data["photos"].values():
+            if isinstance(ph, dict):
+                return ph
+    for it in data.get("items", []) if isinstance(data.get("items"), list) else []:  # 資源清單：第一個有照片的項目
+        if isinstance(it, dict) and isinstance(it.get("photo"), dict):
+            return it["photo"]
     cands = [it for day in data.get("days", []) for it in day.get("items", []) if isinstance(it.get("photo"), dict)]
     for pred in (lambda x: x.get("cover"), lambda x: x.get("star"), lambda x: True):
         for it in cands:
@@ -442,6 +605,9 @@ def build_site(site_path: Path, key_path: Path, out_dir: Path, now: dt.datetime 
         if item.get("template", "trip") == "trip":
             errs += load_price_track(data, data_path.parent)  # 在 ver 之後：每天的價格變動不要讓首頁標「新」
         errs += VALIDATORS.get(item.get("template", "trip"), lambda _: [])(data)
+        if item.get("template") == "article" and not errs:
+            for w in article_warnings(data):
+                print(f"{slug}：{w}")
         errs += inline_photos(data, data_path.parent)
         errs += inline_logos(data, data_path.parent)
         tpl = page_template(item.get("template", "trip"))

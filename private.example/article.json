@@ -1,0 +1,59 @@
+{
+  "title": "示範文章：把想說的事寫成一頁",
+  "subtitle": "這是虛構的示範內容",
+  "date": "2026-01-15",
+  "cover": {
+    "file": "img/demo-cover.png",
+    "alt": "示範封面",
+    "credit": "示範圖（程式產生）",
+    "license": "CC0",
+    "url": "https://example.com/demo-image"
+  },
+  "body": "# 這頁是怎麼組成的\n\n文章模板用一小套 Markdown 寫內容：**粗體**、*斜體*、`行內程式碼`，還有[安全的外部連結](https://example.com/guide)和[撥號連結](tel:+15550100)。\n換行會保留，像這樣。\n\n## 清單\n\n- 第一點：先給要用的資訊\n- 第二點：同類的東西放在一起\n- 第三點：離線也能看\n\n1. 有順序的第一步\n2. 有順序的第二步\n\n> 這是一張小紙條：引言會變成貼在頁面上的便條。\n\n---\n\n### 插圖\n\n![示範插圖：山與太陽](photo:山景)\n\n最後一段文字。",
+  "sections": [
+    {
+      "title": "怎麼用",
+      "body": "# 用法\n\n把內容寫成 Markdown，放進 `body` 或 `sections`。有 `sections` 時，上方會多一排分段，一段一個畫面。\n\n- 標題用 `#`、`##`、`###`\n- 圖片只能用 `photos` 裡的名稱\n\n![另一張示範圖](photo:晴天)"
+    },
+    {
+      "title": "範例清單",
+      "body": "下面是一份虛構的清單：\n\n1. 準備資料\n2. 寫成段落\n3. 檢查、發布\n\n> 小提醒：寫完先在手機上看一次。"
+    },
+    {
+      "title": "小提醒",
+      "body": "### 注意事項\n\n原始 HTML 一律當文字顯示，所以 <b>這個</b> 不會變粗。連結只收 https 與 tel。"
+    }
+  ],
+  "photos": {
+    "山景": {
+      "file": "img/demo-a.png",
+      "alt": "示範插圖：山與太陽",
+      "credit": "示範圖（程式產生）",
+      "license": "CC0",
+      "url": "https://example.com/demo-image"
+    },
+    "晴天": {
+      "file": "img/demo-b.png",
+      "alt": "示範插圖：晴天",
+      "credit": "示範圖（程式產生）",
+      "license": "CC0",
+      "url": "https://example.com/demo-image"
+    }
+  },
+  "sources": [
+    {
+      "text": "示範來源（虛構）",
+      "url": "https://example.com/source"
+    }
+  ],
+  "changelog": [
+    {
+      "date": "1/15",
+      "text": "建立示範頁"
+    },
+    {
+      "date": "1/14",
+      "text": "想好結構"
+    }
+  ]
+}

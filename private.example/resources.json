@@ -1,0 +1,98 @@
+{
+  "title": "示範清單：值得收藏的連結",
+  "subtitle": "虛構內容，示範資源清單模板",
+  "intro": "把常用的連結、工具、文章整理成一頁，可以用標籤篩選。",
+  "cover": {
+    "file": "img/demo-cover.png",
+    "alt": "示範封面",
+    "credit": "示範圖（程式產生）",
+    "license": "CC0",
+    "url": "https://example.com/demo-image"
+  },
+  "groups": [
+    {
+      "name": "工具",
+      "icon": "link"
+    },
+    {
+      "name": "文章",
+      "icon": "doc"
+    }
+  ],
+  "items": [
+    {
+      "title": "示範工具甲",
+      "url": "https://example.com/tool-a",
+      "note": "一個虛構的小工具，用來示範說明文字。",
+      "tags": [
+        "免費",
+        "線上"
+      ],
+      "group": "工具",
+      "date": "2026-01-10",
+      "photo": {
+        "file": "img/demo-a.png",
+        "alt": "示範縮圖",
+        "credit": "示範圖（程式產生）",
+        "license": "CC0",
+        "url": "https://example.com/demo-image"
+      }
+    },
+    {
+      "title": "示範工具乙",
+      "url": "https://example.org/tool-b",
+      "note": "第二個虛構工具。",
+      "tags": [
+        "付費",
+        "線上"
+      ],
+      "group": "工具"
+    },
+    {
+      "title": "示範文章一",
+      "url": "https://example.net/post-1",
+      "note": "介紹基本概念的短文。",
+      "tags": [
+        "入門",
+        "免費"
+      ],
+      "group": "文章",
+      "date": "2026-01-05"
+    },
+    {
+      "title": "示範文章二",
+      "url": "https://example.com/post-2",
+      "tags": [
+        "進階"
+      ],
+      "group": "文章",
+      "photo": {
+        "file": "img/demo-b.png",
+        "alt": "示範縮圖",
+        "credit": "示範圖（程式產生）",
+        "license": "CC0",
+        "url": "https://example.com/demo-image"
+      }
+    },
+    {
+      "title": "沒有分組的項目",
+      "url": "https://example.com/misc",
+      "note": "沒寫 group 的會歸到「其他」。",
+      "tags": [
+        "入門"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "text": "示範來源（虛構）",
+      "url": "https://example.com/source"
+    }
+  ],
+  "changelog": [
+    {
+      "date": "1/15",
+      "text": "建立示範清單"
+    }
+  ]
+}
