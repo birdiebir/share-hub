@@ -24,7 +24,7 @@ python build.py --site private.example/site.json --key private/share_key.txt --o
 ```
 
 - 會在 `out-example/` 產生加密站，終端機印出本機預覽網址（含 `#k=`），用瀏覽器開啟即可。
-- `private.example/` 是虛構範例（`site.json` 設定、`trip.json` 範例行程、`photos/` 一張程式產生的插圖）。自己用時複製成 `private/` 再改；金鑰檔不存在會自動產生，**同一個站一直用同一把**。
+- `private.example/` 是虛構範例（`site.json` 設定、`trip.json` 範例行程、`article.json` 範例文章、`resources.json` 範例資源清單、`photos/` 與 `img/` 程式產生的插圖）。自己用時複製成 `private/` 再改；金鑰檔不存在會自動產生，**同一個站一直用同一把**。
 
 ## 用法
 

@@ -138,7 +138,7 @@ def test_validate_trip_catches_errors():
 
 
 def test_templates_register_offline_worker():
-    # 11-05（P63 第 2 階段）：註冊程式搬進共用層 core.js，模板只呼叫 registerSW(路徑)，所以檢查展開共用層之後的模板
+    # 註冊程式在共用層 core.js，模板只呼叫 registerSW(路徑)，所以檢查展開共用層之後的模板
     for name, path in (("hub", "./sw.js"), ("trip", "../sw.js")):
         assert f'registerSW("{path}")' in (build.TEMPLATES / f"{name}.html").read_text(encoding="utf-8")
         assert "serviceWorker" in build.page_template(name)
